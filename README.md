@@ -1,7 +1,11 @@
 # waste-movement-api
 
-Core delivery platform Node.js Backend Template.
+Backend API for the waste movement journey in Defra's Digital Waste Tracking (DWT) service, running on the
+Core Delivery Platform (CDP). Built from the CDP Node.js backend template.
 
+- [About this service](#about-this-service)
+  - [Current state](#current-state)
+  - [Where it fits](#where-it-fits)
 - [Requirements](#requirements)
   - [Node.js](#nodejs)
 - [Local development](#local-development)
@@ -15,7 +19,6 @@ Core delivery platform Node.js Backend Template.
     - [Windows prettier issue](#windows-prettier-issue)
 - [API endpoints](#api-endpoints)
 - [Development helpers](#development-helpers)
-  - [MongoDB Locks](#mongodb-locks)
   - [Proxy](#proxy)
 - [Docker](#docker)
   - [Development image](#development-image)
@@ -25,6 +28,44 @@ Core delivery platform Node.js Backend Template.
   - [SonarCloud](#sonarcloud)
 - [Licence](#licence)
   - [About the licence](#about-the-licence)
+
+## About this service
+
+This is the Phase 2 API service, created under DWTC-337 to decouple the Phase 2 API from Phase 1 by
+[splitting waste-movement-backend](https://refactored-train-pzzv3pk.pages.github.io/collections/phase2/backend-split/)
+(DWT ADR 11).
+
+It will serve the Phase 2 waste movement APIs, and in time the national waste movements API: the journey a
+waste movement takes from creation to receipt. It covers:
+
+- creating a movement
+- recording its collection
+- recording its delivery
+- recording receipt of the waste, including waste received with no prior delivery
+
+Earlier versions of this journey are served by
+[waste-movement-backend](https://github.com/DEFRA/waste-movement-backend), alongside the Receipt of Waste API.
+
+### Current state
+
+The service runs, connects to MongoDB and serves `GET /health`. The waste movement routes are not added yet.
+
+### Where it fits
+
+This is how the service is planned to work, mirroring how `waste-movement-backend` serves the earlier
+versions:
+
+- **Internal, not internet-facing.** Called by
+  [waste-movement-external-api](https://github.com/DEFRA/waste-movement-external-api), which authenticates
+  external callers and forwards the caller's organisation in the `x-dwt-organisation-id` header.
+- **HTTP Basic auth** for callers, with credentials from `ACCESS_CRED_*` environment variables.
+- **Owns its own MongoDB database**; no other service reads or writes it.
+- **Calls [waste-tracking-id-backend](https://github.com/DEFRA/waste-tracking-id-backend)** for movement and
+  delivery IDs.
+
+The DWT architecture is modelled in
+[digital-waste-tracking-docs](https://github.com/DEFRA/digital-waste-tracking-docs), which does not include
+this service yet.
 
 ## Requirements
 
@@ -52,10 +93,10 @@ npm install
 
 ### Git hooks
 
-Install git hooks (optional)
+Install git hooks (optional). The pre-commit hook runs the security audit, format check, lint and tests.
 
 ```bash
-npm run git:hooks
+npm run setup:husky
 ```
 
 ### Development
@@ -114,56 +155,11 @@ git config --global core.autocrlf false
 
 ## API endpoints
 
-| Endpoint             | Description                    |
-| :------------------- | :----------------------------- |
-| `GET: /health`       | Health                         |
-| `GET: /example    `  | Example API (remove as needed) |
-| `GET: /example/<id>` | Example API (remove as needed) |
+| Endpoint       | Description |
+| :------------- | :---------- |
+| `GET: /health` | Health      |
 
 ## Development helpers
-
-### MongoDB Locks
-
-If you require a write lock for Mongo you can acquire it via `server.locker` or `request.locker`:
-
-```javascript
-async function doStuff(server) {
-  const lock = await server.locker.lock('unique-resource-name')
-
-  if (!lock) {
-    // Lock unavailable
-    return
-  }
-
-  try {
-    // do stuff
-  } finally {
-    await lock.free()
-  }
-}
-```
-
-Keep it small and atomic.
-
-You may use **using** for the lock resource management.
-Note test coverage reports do not like that syntax.
-
-```javascript
-async function doStuff(server) {
-  await using lock = await server.locker.lock('unique-resource-name')
-
-  if (!lock) {
-    // Lock unavailable
-    return
-  }
-
-  // do stuff
-
-  // lock automatically released
-}
-```
-
-Helper methods are also available in `/src/helpers/mongo-lock.js`.
 
 ### Proxy
 
@@ -210,8 +206,9 @@ MongoDB records can also be created when Mongo starts by editing the scripts in 
 
 ### Dependabot
 
-We have added an example dependabot configuration file to the repository. You can enable it by renaming
-the [.github/example.dependabot.yml](.github/example.dependabot.yml) to `.github/dependabot.yml`
+Dependabot is configured in [.github/dependabot.yml](.github/dependabot.yml). It proposes npm and GitHub
+Actions updates weekly, and only npm versions at least 7 days old, matching `min-release-age` in
+[.npmrc](.npmrc).
 
 ### SonarCloud
 
