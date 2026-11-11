@@ -1,5 +1,4 @@
 import { Db, MongoClient } from 'mongodb'
-import { LockManager } from 'mongo-locks'
 
 describe('#mongoDb', () => {
   let server
@@ -16,7 +15,6 @@ describe('#mongoDb', () => {
     test('Server should have expected MongoDb decorators', () => {
       expect(server.db).toBeInstanceOf(Db)
       expect(server.mongoClient).toBeInstanceOf(MongoClient)
-      expect(server.locker).toBeInstanceOf(LockManager)
     })
 
     test('MongoDb should have expected database name', () => {

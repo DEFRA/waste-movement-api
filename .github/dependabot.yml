@@ -26,7 +26,6 @@ updates:
           - 'husky'
           - 'vitest'
           - 'nodemon'
-          - 'npm-run-all'
 
     ignore:
       - dependency-name: 'eslint-*'
@@ -39,6 +38,10 @@ updates:
       timezone: 'Europe/London'
 
     versioning-strategy: increase
+
+    # Match min-release-age in .npmrc: only propose versions at least 7 days old
+    cooldown:
+      default-days: 7
 
     allow:
       # Include direct package.json updates
