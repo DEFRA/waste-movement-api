@@ -314,21 +314,15 @@ docker run -e PORT=3001 -p 3001:3001 waste-movement-api
 
 A local environment with:
 
-- Floci for AWS services (S3, SQS, SNS etc)
-- Redis
-- MongoDB, as a one-node replica set (deliveries are written in a transaction)
-- waste-tracking-id-backend, built from a sibling checkout: clone it next to this repo
-- This service.
-
-Credentials default to made-up local-only values; set your own in `.env` (see
-[.env.example](.env.example)).
+- MongoDB (required for this service)
+- waste-tracking-id-backend (mints movement and delivery IDs)
+- This service, on port 3007
 
 ```bash
 docker compose up --build -d
 ```
 
-Mock AWS resources can be created when Floci starts up by editing the scripts in `./compose/floci/start.d/`.
-MongoDB records can also be created when Mongo starts by editing the scripts in `./compose/mongo/`.
+The stack is defined once in digital-waste-tracking-uat ([shared-compose/](https://github.com/DEFRA/digital-waste-tracking-uat/tree/main/shared-compose)) and shared with the other service repos. `compose.yml` includes it and `compose.override-shared.yml` builds this service from your checkout. Its credentials are made-up local-only values, so no `.env` is needed; see `.env.example` for the optional overrides.
 
 ### Dependabot
 

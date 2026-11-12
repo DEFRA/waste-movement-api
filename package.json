@@ -32,7 +32,6 @@
   "author": "Defra DDTS",
   "license": "OGL-UK-3.0",
   "dependencies": {
-    "@aws-sdk/credential-providers": "3.1161.0",
     "@defra/hapi-secure-context": "0.4.2",
     "@defra/hapi-tracing": "1.30.2",
     "@defra/waste-movement-utils": "1.21.0",

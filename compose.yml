@@ -1,114 +1,13 @@
-services:
-  # floci is a replacement for localstack. It emulates AWS resources (sqs, sns, s3 etc) for local development
-  # See: https://floci.io for more details
-  floci:
-    image: hectorvent/floci:latest-aws
-    ports:
-      - '4566:4566'
-    env_file:
-      - 'compose/aws.env'
-    environment:
-      FLOCI_DEFAULT_REGION: eu-west-2
-    volumes:
-      - ./compose/floci/start.d:/etc/floci/init/start.d:ro
-    networks:
-      - cdp-tenant
+# The full stack, shared with the other service repos (see shared-compose/README.md
+# in digital-waste-tracking-uat), with waste-movement-api built from this repo by
+# compose.override-shared.yml.
+#
+# Set SHARED_COMPOSE to a local checkout's shared-compose/compose.yml to try
+# changes to the shared stack. Add a compose.override.yml for your own tweaks.
 
-  redis:
-    image: redis:7.2.3-alpine3.18
-    ports:
-      - '6379:6379'
-    networks:
-      - cdp-tenant
-
-  # A one-node replica set: recording deliveries writes in a transaction. The
-  # healthcheck initiates the set on first start, and is healthy once it has a
-  # primary.
-  mongodb:
-    image: mongo:7.0.28
-    command: ['--replSet', 'rs0', '--bind_ip_all']
-    networks:
-      - cdp-tenant
-    ports:
-      - '27017:27017'
-    volumes:
-      - ./compose/mongo:/docker-entrypoint-initdb.d:ro
-      - mongodb-data:/data
-    healthcheck:
-      test:
-        - CMD
-        - mongosh
-        - --quiet
-        - --eval
-        - "try { rs.status() } catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'mongodb:27017' }] }) }; quit(db.hello().isWritablePrimary ? 0 : 1)"
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-
-  # Mints movement and delivery IDs. Built from a sibling checkout, so clone
-  # waste-tracking-id-backend next to this repo.
-  waste-tracking-id-backend:
-    build:
-      context: ../waste-tracking-id-backend
-      target: development
-    ports:
-      - '3003:3001'
-    depends_on:
-      mongodb:
-        condition: service_healthy
-    environment:
-      PORT: 3001
-      NODE_ENV: development
-      ENVIRONMENT: local
-      MONGO_URI: mongodb://mongodb:27017/?replicaSet=rs0&directConnection=true
-      # Lets this service call it: base64 of waste-movement-api=<password>,
-      # matching SERVICE_AUTH_PASSWORD_WASTE_MOVEMENT_API below
-      ACCESS_CRED_WASTE_MOVEMENT_API: ${ACCESS_CRED_WASTE_MOVEMENT_API:-d2FzdGUtbW92ZW1lbnQtYXBpPWxvY2FsLW9ubHktcGFzc3dvcmQ=}
-    networks:
-      - cdp-tenant
-
-  ################################################################################
-
-  waste-movement-api:
-    build:
-      context: .
-      target: development
-    ports:
-      - '3001:3001'
-    links:
-      - 'floci:floci'
-      - 'mongodb:mongodb'
-    depends_on:
-      floci:
-        condition: service_healthy
-      mongodb:
-        condition: service_healthy
-      waste-tracking-id-backend:
-        condition: service_started
-    env_file:
-      - 'compose/aws.env'
-    environment:
-      PORT: 3001
-      NODE_ENV: development
-      MONGO_URI: mongodb://mongodb:27017/?replicaSet=rs0&directConnection=true
-      WASTE_TRACKING_URL: http://waste-tracking-id-backend:3001
-      SERVICE_AUTH_PASSWORD_WASTE_MOVEMENT_API: ${SERVICE_AUTH_PASSWORD_WASTE_MOVEMENT_API:-local-only-password}
-      # Callers' Basic credentials, base64 of <username>=<password>. Local-only
-      # defaults; set your own in .env (see .env.example).
-      ACCESS_CRED_WASTE_MOVEMENT_EXTERNAL_API: ${ACCESS_CRED_WASTE_MOVEMENT_EXTERNAL_API:-d2FzdGUtbW92ZW1lbnQtZXh0ZXJuYWwtYXBpPWxvY2FsLW9ubHktcGFzc3dvcmQ=}
-    networks:
-      - cdp-tenant
-    volumes:
-      - ./src:/home/node/src
-      - ./package.json:/home/node/package.json
-
-################################################################################
-
-volumes:
-  mongodb-data:
-
-networks:
-  cdp-tenant:
-    driver: bridge
-    name: cdp-tenant
+include:
+  # The override goes in this list, as older Compose versions (such as v2.38 on
+  # GitHub's runners) reject redefining an included service
+  - path:
+      - ${SHARED_COMPOSE:-https://github.com/DEFRA/digital-waste-tracking-uat.git#main:shared-compose/compose.yml}
+      - compose.override-shared.yml
