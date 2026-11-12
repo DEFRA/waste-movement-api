@@ -96,7 +96,8 @@ src/
                        ajv errors mapped to the 400's errors[], withPayloadChecks, and the
                        generic date-time checks (emptyIsNotProvided, notInFuture)
     http/              waste-tracking-id-backend client: createMovementId, createDeliveryId
-    data/              versionedCollections, sweepStaleRevisions, isDuplicateKeyError
+    data/              versionedCollections, sweepStaleRevisions, isDuplicateKeyError,
+                       insertWithRetry (a duplicate key on a retry counts as success)
     openapi/           bundle(specPath): an OpenAPI document with every $ref resolved
     organisation.js    getOrganisationId, from the x-dwt-organisation-id header
     route-errors.js    handleBetaRouteError
