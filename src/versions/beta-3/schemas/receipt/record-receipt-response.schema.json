@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Record receipt response",
+  "description": "Response returned when a Receipt is recorded.",
+  "type": "object",
+  "required": ["data", "validation"],
+  "properties": {
+    "data": {
+      "type": "object",
+      "description": "The Delivery the Receipt is recorded against — echoed from the path on `POST /deliveries/{deliveryId}/receipt`, or a new empty Delivery minted by `POST /receipts`.",
+      "required": ["deliveryId"],
+      "properties": {
+        "deliveryId": {
+          "$ref": "../common/delivery-id.schema.json",
+          "description": "The Delivery ID the Receipt was recorded against."
+        }
+      },
+      "additionalProperties": false
+    },
+    "validation": {
+      "$ref": "../common/validation.schema.json",
+      "description": "Data-quality feedback on the request."
+    }
+  },
+  "additionalProperties": false
+}

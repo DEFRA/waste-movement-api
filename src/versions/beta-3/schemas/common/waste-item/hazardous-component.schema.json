@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Hazardous component",
+  "description": "A hazardous component of a waste item: its name, and either its concentration as an amount with a unit or how its concentration compares with the relevant threshold, but not both.",
+  "examples": [
+    {
+      "name": "Mercury",
+      "unit": "MG_PER_KG",
+      "amount": 120
+    },
+    {
+      "name": "Lead compounds",
+      "threshold": "GREATER_THAN"
+    }
+  ],
+  "type": "object",
+  "allOf": [
+    {
+      "if": {
+        "properties": { "amount": {} },
+        "required": ["amount"]
+      },
+      "then": {
+        "properties": {
+          "threshold": {
+            "not": {},
+            "description": "Not allowed when 'amount' is provided"
+          },
+          "unit": {}
+        },
+        "required": ["unit"],
+        "description": "Required when 'amount' is provided"
+      },
+      "else": {
+        "properties": {
+          "threshold": {}
+        },
+        "required": ["threshold"],
+        "description": "Required when 'amount' is not provided"
+      }
+    }
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "description": "The hazardous component's name, as free text. Not checked against any reference data."
+    },
+    "unit": {
+      "type": "string",
+      "enum": ["MG_PER_KG"],
+      "description": "The unit of the amount: milligrams per kilogram. Required when 'amount' is provided."
+    },
+    "amount": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "The component's concentration, in 'unit': a number greater than 0. Exactly one of 'amount' or 'threshold' is required."
+    },
+    "threshold": {
+      "type": "string",
+      "enum": ["EQUAL_TO", "GREATER_THAN"],
+      "description": "How the component's concentration compares with the relevant threshold, when the amount itself isn't given: equal to it or greater than it. The threshold value isn't sent. Exactly one of 'amount' or 'threshold' is required."
+    }
+  },
+  "required": ["name"],
+  "additionalProperties": false
+}

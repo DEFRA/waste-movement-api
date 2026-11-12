@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "POP component",
+  "description": "A persistent organic pollutant (POP) in a waste item: its code, and either its concentration as an amount with a unit or how its concentration compares with the threshold WM3 sets for that code, but not both.",
+  "examples": [
+    {
+      "code": "PFOA",
+      "unit": "MG_PER_KG",
+      "amount": 0.5
+    },
+    {
+      "code": "PFOS",
+      "threshold": "LESS_THAN"
+    }
+  ],
+  "type": "object",
+  "allOf": [
+    {
+      "if": {
+        "properties": { "amount": {} },
+        "required": ["amount"]
+      },
+      "then": {
+        "properties": {
+          "threshold": {
+            "not": {},
+            "description": "Not allowed when 'amount' is provided"
+          },
+          "unit": {}
+        },
+        "required": ["unit"],
+        "description": "Required when 'amount' is provided"
+      },
+      "else": {
+        "properties": {
+          "threshold": {}
+        },
+        "required": ["threshold"],
+        "description": "Required when 'amount' is not provided"
+      }
+    }
+  ],
+  "properties": {
+    "code": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "description": "The POP's code, from `GET /reference-data/pop-names`. Only checked for being non-empty here; the service checks it against the reference data and reports an unrecognised code as an InvalidValue error."
+    },
+    "unit": {
+      "type": "string",
+      "enum": ["MG_PER_KG"],
+      "description": "The unit of the amount: milligrams per kilogram. Required when 'amount' is provided."
+    },
+    "amount": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "The POP's concentration, in 'unit': a number greater than 0. Exactly one of 'amount' or 'threshold' is required."
+    },
+    "threshold": {
+      "type": "string",
+      "enum": ["LESS_THAN", "EQUAL_TO", "GREATER_THAN"],
+      "description": "How the POP's concentration compares with the threshold WM3 sets for its code, when the amount itself isn't given. The threshold value isn't sent. Exactly one of 'amount' or 'threshold' is required."
+    }
+  },
+  "required": ["code"],
+  "additionalProperties": false
+}

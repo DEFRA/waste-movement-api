@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A fixture covering each keyword the error mapping handles",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["reference", "meansOfTransport"],
+  "properties": {
+    "reference": {
+      "description": "A UUID",
+      "type": "string",
+      "format": "uuid"
+    },
+    "note": {
+      "description": "Short text",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 10
+    },
+    "weight": {
+      "description": "A positive amount",
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "label": {
+      "description": "A label",
+      "enum": ["PO_NUMBER", "OTHER"]
+    },
+    "tags": {
+      "description": "Distinct tags",
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "description": "A tag", "type": "string" }
+    },
+    "count": {
+      "description": "Matches both branches, so always breaks the oneOf",
+      "oneOf": [
+        { "description": "An integer", "type": "integer" },
+        { "description": "A number", "type": "number" }
+      ]
+    },
+    "meansOfTransport": {
+      "description": "How it travels",
+      "enum": ["ROAD", "RAIL"]
+    },
+    "vehicleRegistration": {
+      "description": "A vehicle registration",
+      "type": "string"
+    },
+    "address": { "$ref": "common/address.schema.json" },
+    "contact": { "$ref": "common/contact.schema.json" }
+  },
+  "if": {
+    "properties": { "meansOfTransport": { "const": "ROAD" } },
+    "required": ["meansOfTransport"]
+  },
+  "then": {
+    "description": "Required when 'meansOfTransport' is 'ROAD'",
+    "properties": { "vehicleRegistration": {} },
+    "required": ["vehicleRegistration"]
+  },
+  "else": {
+    "properties": {
+      "vehicleRegistration": {
+        "not": {},
+        "description": "Not allowed unless 'meansOfTransport' is 'ROAD'"
+      }
+    }
+  }
+}

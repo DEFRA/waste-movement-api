@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Collection site",
+  "description": "The place the waste will be collected from. address and contactDetails are required.",
+  "examples": [
+    {
+      "address": {
+        "fullAddress": "10 Industrial Way, Test City",
+        "postcode": "TE1 2PQ"
+      },
+      "contactDetails": {
+        "emailAddress": "site@example.com",
+        "phoneNumber": "01234567890"
+      }
+    }
+  ],
+  "type": "object",
+  "properties": {
+    "address": {
+      "$ref": "address.schema.json",
+      "description": "The address of the collection site."
+    },
+    "contactDetails": {
+      "$ref": "contact-details.schema.json",
+      "description": "How to contact someone at the collection site."
+    }
+  },
+  "required": ["address", "contactDetails"],
+  "additionalProperties": false
+}

@@ -5,7 +5,14 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     clearMocks: true,
+    restoreMocks: true,
     fileParallelism: false,
+    // The integration tests have their own config: vitest.integration.config.js
+    exclude: [
+      ...configDefaults.exclude,
+      'src/versions/*/tests/**/*.test.js',
+      'test/integration/**'
+    ],
     coverage: {
       provider: 'v8',
       reportsDirectory: './coverage',
@@ -13,6 +20,6 @@ export default defineConfig({
       include: ['src/**/*.js'],
       exclude: [...configDefaults.exclude, 'coverage']
     },
-    setupFiles: ['.vite/mongo-memory-server.js']
+    globalSetup: ['.vite/mongo-memory-server.js']
   }
 })

@@ -1,0 +1,77 @@
+{
+  "withBrokerAndReferences": {
+    "summary": "With broker or dealer and a weighbridge reference",
+    "value": {
+      "receiptDateTime": "2026-10-14T09:30:00Z",
+      "carrier": {
+        "organisationName": "Carrier Demo Ltd",
+        "registrationNumber": "CBDU123456",
+        "meansOfTransport": "ROAD",
+        "vehicleRegistration": "AB12 CDE",
+        "contactDetails": {
+          "emailAddress": "carrier@example.com",
+          "phoneNumber": "01234567890"
+        },
+        "address": {
+          "fullAddress": "4 Carrier Lane, Test City",
+          "postcode": "TE1 4CR"
+        }
+      },
+      "receiver": {
+        "siteName": "Receiver Site Ltd",
+        "authorisationNumber": "EAS/P/123456",
+        "receiptAddress": {
+          "fullAddress": "3 Receiver Road, Test City",
+          "postcode": "TE1 3RC"
+        },
+        "contactDetails": {
+          "emailAddress": "receiver@example.com",
+          "phoneNumber": "01234567890"
+        }
+      },
+      "physicalDetails": {
+        "form": "SOLID",
+        "containerType": "DRU",
+        "containerCount": 4,
+        "totalWeight": {
+          "amount": 248.2,
+          "unit": "KILOGRAMS",
+          "isEstimate": false
+        }
+      },
+      "treatments": [
+        {
+          "disposalOrRecoveryCode": "R3",
+          "weight": {
+            "amount": 248.2,
+            "unit": "KILOGRAMS",
+            "isEstimate": false
+          }
+        }
+      ],
+      "brokerOrDealer": {
+        "isPresent": true,
+        "items": [
+          {
+            "organisationName": "Broker Demo Ltd",
+            "registrationNumber": "CBDU654321",
+            "contactDetails": {
+              "emailAddress": "broker@example.com",
+              "phoneNumber": "01112223333"
+            },
+            "address": {
+              "fullAddress": "2 Broker Yard, Test City",
+              "postcode": "TE1 1ST"
+            }
+          }
+        ]
+      },
+      "supportingReferences": [
+        {
+          "label": "WEIGHBRIDGE_NUMBER",
+          "reference": "WB-0042"
+        }
+      ]
+    }
+  }
+}

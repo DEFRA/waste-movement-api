@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Persistent organic pollutants",
+  "description": "Declares whether a waste item contains persistent organic pollutants (POPs), and if so which, and where those details came from. isPresent is required. When it is true, componentsSource and at least one component are required, whatever the source; when it is false, neither is allowed.",
+  "examples": [
+    {
+      "isPresent": false
+    },
+    {
+      "isPresent": true,
+      "componentsSource": "OWN_TESTING",
+      "components": [
+        {
+          "code": "PFOA",
+          "unit": "MG_PER_KG",
+          "amount": 0.5
+        },
+        {
+          "code": "PFOS",
+          "threshold": "LESS_THAN"
+        }
+      ]
+    }
+  ],
+  "type": "object",
+  "if": {
+    "properties": { "isPresent": { "const": true } },
+    "required": ["isPresent"]
+  },
+  "then": {
+    "properties": { "componentsSource": {}, "components": {} },
+    "required": ["componentsSource", "components"],
+    "description": "Required when 'isPresent' is true"
+  },
+  "else": {
+    "properties": {
+      "componentsSource": {
+        "not": {},
+        "description": "Not allowed unless 'isPresent' is true"
+      },
+      "components": {
+        "not": {},
+        "description": "Not allowed unless 'isPresent' is true"
+      }
+    }
+  },
+  "properties": {
+    "isPresent": {
+      "type": "boolean",
+      "description": "Whether the waste item contains any persistent organic pollutants."
+    },
+    "componentsSource": {
+      "type": "string",
+      "enum": ["GUIDANCE", "PROVIDED_WITH_WASTE", "OWN_TESTING"],
+      "description": "Where the POP details came from: government guidance, provided with the waste, or the receiver's own testing or analysis. Required when isPresent is true; not allowed otherwise."
+    },
+    "components": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "pop-component.schema.json"
+      },
+      "description": "The POPs the waste item contains. At least one is required when isPresent is true, whatever the source; not allowed otherwise."
+    }
+  },
+  "required": ["isPresent"],
+  "additionalProperties": false
+}

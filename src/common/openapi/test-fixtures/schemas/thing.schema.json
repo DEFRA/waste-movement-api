@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "properties": {
+    "name": { "type": "string", "description": "A name" },
+    "address": { "$ref": "../shared/address.schema.json" },
+    "parent": { "$ref": "#/$defs/parent" }
+  },
+  "$defs": {
+    "parent": { "type": "string" }
+  }
+}

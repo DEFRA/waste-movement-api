@@ -6,12 +6,19 @@ Core Delivery Platform (CDP). Built from the CDP Node.js backend template.
 - [About this service](#about-this-service)
   - [Current state](#current-state)
   - [Where it fits](#where-it-fits)
+- [API versions](#api-versions)
+  - [Layout](#layout)
+  - [Adding a version](#adding-a-version)
+  - [Retiring a version](#retiring-a-version)
+  - [Stored data and DATA_REVISION](#stored-data-and-data_revision)
 - [Requirements](#requirements)
   - [Node.js](#nodejs)
 - [Local development](#local-development)
   - [Setup](#setup)
   - [Development](#development)
   - [Testing](#testing)
+  - [Integration tests](#integration-tests)
+  - [Environment variables](#environment-variables)
   - [Production](#production)
   - [Npm scripts](#npm-scripts)
   - [Update dependencies](#update-dependencies)
@@ -48,12 +55,20 @@ Earlier versions of this journey are served by
 
 ### Current state
 
-The service runs, connects to MongoDB and serves `GET /health`. The waste movement routes are not added yet.
+The service serves the Phase 2 waste movement journey as **`beta-3`**, ported from
+`waste-movement-backend`'s `beta-2` (at `b067981`) with the same contract: routes, JSON Schemas,
+OpenAPI spec and storage. It has no Phase 1 (Receipt of Waste) endpoints and no `beta-1`.
+
+Not done yet:
+
+- `waste-movement-external-api` doesn't route any traffic here yet.
+- The bundled OpenAPI spec isn't served (`GET /beta-3/openapi.json`); the spec is in
+  [src/versions/beta-3/schemas/openapi.json](src/versions/beta-3/schemas/openapi.json).
+- No Schemathesis or cross-repo UAT coverage for `beta-3`.
 
 ### Where it fits
 
-This is how the service is planned to work, mirroring how `waste-movement-backend` serves the earlier
-versions:
+It works the way `waste-movement-backend` serves the earlier versions:
 
 - **Internal, not internet-facing.** Called by
   [waste-movement-external-api](https://github.com/DEFRA/waste-movement-external-api), which authenticates
@@ -66,6 +81,79 @@ versions:
 The DWT architecture is modelled in
 [digital-waste-tracking-docs](https://github.com/DEFRA/digital-waste-tracking-docs), which does not include
 this service yet.
+
+## API versions
+
+### Layout
+
+Everything specific to one version lives in its folder, so versions can't drift into each other.
+What doesn't depend on the contract is shared.
+
+```
+src/
+  common/              shared by every version
+    validation/        createValidators(schemaRoot): JSON Schema request/response validators,
+                       ajv errors mapped to the 400's errors[], withPayloadChecks, and the
+                       generic date-time checks (emptyIsNotProvided, notInFuture)
+    http/              waste-tracking-id-backend client: createMovementId, createDeliveryId
+    data/              versionedCollections, sweepStaleRevisions, isDuplicateKeyError,
+                       insertWithRetry (a duplicate key on a retry counts as success)
+    openapi/           bundle(specPath): an OpenAPI document with every $ref resolved
+    organisation.js    getOrganisationId, from the x-dwt-organisation-id header
+    route-errors.js    handleBetaRouteError
+  plugins/
+    router.js          GET /health, and one register() per version
+    journey-logger.js  logs each journey step against its Movement and Delivery IDs
+  versions/beta-3/
+    index.js           the version's plugin: its routes, indexes and stale-data sweep
+    routes/            one file per endpoint, each a function of the version (index.js)
+    schemas/           JSON Schemas, examples, openapi.json and the conventions they follow
+    checks/            this version's payload checks: rules a schema can't express
+    data/              DATA_REVISION, and movement and delivery data access
+    tests/             its integration tests, over real HTTP (unit tests sit beside their code)
+```
+
+### Adding a version
+
+1. Copy the latest version's folder: `cp -r src/versions/beta-3 src/versions/beta-4`.
+2. In the copy, set `apiVersion` in `index.js`, rename the plugin export,
+   and set `info.version` and `servers[].url` in `schemas/openapi.json`. The tests take the version
+   name and collection names from `index.js`, so only comments still mention the old name.
+3. Set `DATA_REVISION` in `data/revision.js` back to `1`: the new version starts on its own
+   collections.
+4. Register it in [src/plugins/router.js](src/plugins/router.js):
+   `await server.register(beta4, { routes: { prefix: '/beta-4' } })`.
+5. Add its routes to [test/integration/expected-routes.js](test/integration/expected-routes.js) and
+   [src/plugins/router.test.js](src/plugins/router.test.js).
+
+Then change the new version freely; the old one is untouched.
+
+### Retiring a version
+
+Delete its folder and its line in `router.js`, and its routes from the route lists in tests. Its
+collections (`<version>-r<N>-*`) are left in MongoDB; drop them by hand once nothing needs them.
+
+### Stored data and DATA_REVISION
+
+Each version stores its data in its own collections, named `<version>-r<DATA_REVISION>-<name>`, e.g.
+`beta-3-r1-movements` and `beta-3-r1-deliveries`.
+
+**Bump `DATA_REVISION`** (in the version's `data/revision.js`) when a change means the code can no
+longer read what's already stored, e.g. a stored field is renamed, moved or changes type. Adding a
+field the code treats as optional doesn't need a bump. There is no migration: on its next boot the
+service starts on new, empty collections and drops that version's collections for every other
+revision. Beta data is disposable, so this is the reset.
+
+Note that every instance sweeps on boot. While a deploy that bumps the revision rolls out, old
+instances keep writing to the old revision's collections, which a new instance may already have
+dropped; and an old instance that restarts mid-rollout would drop the new revision's. Bump it only
+where losing data written during the rollout is acceptable.
+
+Indexes are created on boot: `movementId` is unique; `deliveryId` isn't, since a resubmitted
+hazardous Movement has a delivery record per submission. Creating a movement retries a failed
+write, and a retry that finds its `movementId` already stored counts as success (the earlier attempt
+landed, but its acknowledgement was lost). The first attempt finding it stored means the ID was
+minted twice, which is a 500.
 
 ## Requirements
 
@@ -109,11 +197,40 @@ npm run dev
 
 ### Testing
 
-To test the application run:
+To run the unit and route tests, with coverage, run:
 
 ```bash
 npm run test
 ```
+
+They share one in-memory MongoDB replica set for the whole run (`.vite/mongo-memory-server.js`).
+
+Route tests take a `server` from [test/helpers/route-fixtures.js](test/helpers/route-fixtures.js), a
+[Vitest fixture](https://vitest.dev/guide/test-context.html) with one initialised server per file,
+and extend it with their own, e.g. a `submit` for their route. Mocks are cleared and spies restored
+before every test (`clearMocks` and `restoreMocks` in `vitest.config.js`), so a test never inherits
+another's stub.
+
+### Integration tests
+
+To run the service over real HTTP, against an in-memory MongoDB and a stub waste-tracking-id-backend:
+
+```bash
+npm run test:integration
+```
+
+See [test/integration/README.md](test/integration/README.md). CI runs both.
+
+### Environment variables
+
+See [.env.example](.env.example) and [src/config.js](src/config.js). The ones specific to this service:
+
+| Variable                                   | Purpose                                                                                                          |
+| :----------------------------------------- | :--------------------------------------------------------------------------------------------------------------- |
+| `ACCESS_CRED_*`                            | One per caller: base64 of `<username>=<password>`, checked by HTTP Basic auth                                    |
+| `WASTE_TRACKING_URL`                       | waste-tracking-id-backend's base URL. Defaults to the one in the same CDP environment                            |
+| `SERVICE_AUTH_PASSWORD_WASTE_MOVEMENT_API` | The password sent to waste-tracking-id-backend as `waste-movement-api` (`SERVICE_AUTH_USERNAME_…` sets the user) |
+| `PROBLEM_DETAILS_TYPE_BASE`                | Base URI of the RFC 9457 problem `type`s in error responses                                                      |
 
 ### Production
 
@@ -155,9 +272,21 @@ git config --global core.autocrlf false
 
 ## API endpoints
 
-| Endpoint       | Description |
-| :------------- | :---------- |
-| `GET: /health` | Health      |
+Every route but `/health` needs HTTP Basic auth, and every error is an RFC 9457 problem response
+(`application/problem+json`). The beta routes also need the caller's organisation in the
+`x-dwt-organisation-id` header, which waste-movement-external-api sets.
+
+| Endpoint                                          | Description                                |
+| :------------------------------------------------ | :----------------------------------------- |
+| `GET: /health`                                    | Health (no auth)                           |
+| `POST: /beta-3/movements`                         | Create a Movement                          |
+| `POST: /beta-3/movements/{movementId}/collection` | Record the Collection for a Movement       |
+| `POST: /beta-3/deliveries`                        | Record a Delivery of one or more Movements |
+| `POST: /beta-3/deliveries/{deliveryId}/receipt`   | Record receipt of waste against a Delivery |
+| `POST: /beta-3/receipts`                          | Record receipt of undocumented waste       |
+
+The request and response bodies are defined in [src/versions/beta-3/schemas](src/versions/beta-3/schemas),
+described by its [openapi.json](src/versions/beta-3/schemas/openapi.json).
 
 ## Development helpers
 
@@ -191,18 +320,15 @@ docker run -e PORT=3001 -p 3001:3001 waste-movement-api
 
 A local environment with:
 
-- Floci for AWS services (S3, SQS, SNS etc)
-- Redis
-- MongoDB
-- This service.
-- A commented out frontend example.
+- MongoDB (required for this service)
+- waste-tracking-id-backend (mints movement and delivery IDs)
+- This service, on port 3007
 
 ```bash
 docker compose up --build -d
 ```
 
-Mock AWS resources can be created when Floci starts up by editing the scripts in `./compose/floci/start.d/`.
-MongoDB records can also be created when Mongo starts by editing the scripts in `./compose/mongo/`.
+The stack is defined once in digital-waste-tracking-uat ([shared-compose/](https://github.com/DEFRA/digital-waste-tracking-uat/tree/main/shared-compose)) and shared with the other service repos. `compose.yml` includes it and `compose.override-shared.yml` builds this service from your checkout. Its credentials are made-up local-only values, so no `.env` is needed; see `.env.example` for the optional overrides.
 
 ### Dependabot
 
