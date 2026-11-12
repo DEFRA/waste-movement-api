@@ -1,9 +1,8 @@
 import { ERROR_TYPE } from '@defra/waste-movement-utils'
 
-// Payload checks (see common/validation/payload-checks.js) for date-time
-// fields. The JSON Schema checks a date-time is given and is ISO 8601; rules
-// that depend on when the request arrives can't be said there, so they're
-// here. Each takes the field's path, e.g. ['receiptDateTime'], with array
+// Payload checks (see payload-checks.js) for date-time fields. The JSON
+// Schema checks a date-time is given and is ISO 8601; rules that depend on
+// when the request arrives can't be said there, so they're here. Each takes the field's path, e.g. ['receiptDateTime'], with array
 // indexes as strings like the paths in the details.
 
 const valueAt = (payload, path) =>

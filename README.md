@@ -93,7 +93,8 @@ What doesn't depend on the contract is shared.
 src/
   common/              shared by every version
     validation/        createValidators(schemaRoot): JSON Schema request/response validators,
-                       ajv errors mapped to the 400's errors[], withPayloadChecks
+                       ajv errors mapped to the 400's errors[], withPayloadChecks, and the
+                       generic date-time checks (emptyIsNotProvided, notInFuture)
     http/              waste-tracking-id-backend client: createMovementId, createDeliveryId
     data/              versionedCollections, sweepStaleRevisions, isDuplicateKeyError
     openapi/           bundle(specPath): an OpenAPI document with every $ref resolved
@@ -106,7 +107,7 @@ src/
     index.js           the version's plugin: its routes, indexes and stale-data sweep
     routes/            one file per endpoint, each a function of the version (index.js)
     schemas/           JSON Schemas, examples, openapi.json and the conventions they follow
-    checks/            payload checks: rules a schema can't express
+    checks/            this version's payload checks: rules a schema can't express
     data/              DATA_REVISION, and movement and delivery data access
     tests/             its integration tests, over real HTTP (unit tests sit beside their code)
 ```

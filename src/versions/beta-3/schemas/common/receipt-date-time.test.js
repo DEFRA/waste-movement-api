@@ -3,7 +3,7 @@ import { validatorFor } from '../test-helpers.js'
 const validateAjv = validatorFor('common/receipt-date-time.schema.json')
 
 // Whether it's in the future depends on when the request arrives, so that's
-// checked by receipt-date-time-checks.js, not the schema.
+// checked by common/validation/date-time-checks.js, not the schema.
 describe('receipt-date-time schema', () => {
   test.each([
     ['2026-10-14T09:30:00Z'],
