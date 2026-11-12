@@ -191,10 +191,6 @@ describe('response', () => {
     errorSpy = vi.spyOn(createLogger(), 'error').mockImplementation(() => {})
   })
 
-  afterEach(() => {
-    errorSpy.mockRestore()
-  })
-
   test('returns the value unchanged when it is valid', () => {
     expect(validators.response('shipment-response')(validBody)).toBe(validBody)
     expect(errorSpy).not.toHaveBeenCalled()

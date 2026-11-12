@@ -1,10 +1,7 @@
 import { HTTP_STATUS } from '@defra/waste-movement-utils'
 import { apiCode1 } from '#test/data/api-codes.js'
-import {
-  requestBasicAuthTest1,
-  userBasicAuthTest1
-} from '#test/data/basic-auth.js'
-import { createServer } from '#/server.js'
+import { requestBasicAuthTest1 } from '#test/data/basic-auth.js'
+import { test as routeTest } from '#test/helpers/route-fixtures.js'
 import { breakNextResponse } from '#test/helpers/break-next-response.js'
 import { organisationHeaders } from '#test/data/organisation-headers.js'
 import {
@@ -26,34 +23,72 @@ vi.mock('#/common/http/waste-tracking.js', () => ({
   createDeliveryId: vi.fn().mockResolvedValue('26S8EYDJ')
 }))
 
-describe(`collection Route Tests version: ${apiVersion}`, () => {
-  let server
-  const errorMessage = 'Database connection failed'
-  const traceId = 'created-trace-id-123'
-  const isDutyOfCareConfirmed = true
-  const goodPayload = {
-    carrier,
-    collectionDateTime,
-    collectionSite,
-    isDutyOfCareConfirmed
+const errorMessage = 'Database connection failed'
+const traceId = 'created-trace-id-123'
+const isDutyOfCareConfirmed = true
+const goodPayload = {
+  carrier,
+  collectionDateTime,
+  collectionSite,
+  isDutyOfCareConfirmed
+}
+const goodMovementId = '25HRA0B2'
+
+const expectedTypeBase =
+  'https://defra.github.io/digital-waste-tracking-api-site/preview/problems/'
+
+const test = routeTest.extend({
+  // Submits a collection for goodMovementId
+  submitCollection: async ({ server }, use) => {
+    await use((payload) =>
+      server.inject({
+        method: 'POST',
+        url: `/${apiVersion}/movements/${goodMovementId}/collection`,
+        payload,
+        headers: {
+          'x-cdp-request-id': traceId,
+          Authorization: `Basic ${requestBasicAuthTest1}`,
+          ...organisationHeaders
+        }
+      })
+    )
+  },
+
+  // Expects the collection to be accepted for a movement that exists
+  expectCollectionCreated: async ({ submitCollection }, use) => {
+    await use(async (payload) => {
+      vi.spyOn(movementService, 'getMovementRecord').mockResolvedValue({
+        id: goodMovementId
+      })
+
+      const { statusCode } = await submitCollection(payload)
+
+      expect(statusCode).toEqual(HTTP_STATUS.CREATED)
+    })
+  },
+
+  // Expects the collection to be rejected before the movement is looked up
+  expectCollectionRejected: async ({ submitCollection }, use) => {
+    await use(async (payload, errors) => {
+      const getMovementRecordSpy = vi.spyOn(
+        movementService,
+        'getMovementRecord'
+      )
+
+      const { statusCode, result } = await submitCollection(payload)
+
+      expect(statusCode).toEqual(HTTP_STATUS.BAD_REQUEST)
+      expect(result.errors).toEqual(errors)
+      expect(getMovementRecordSpy).toHaveBeenCalledTimes(0)
+    })
   }
-  const goodMovementId = '25HRA0B2'
+})
 
-  const expectedTypeBase =
-    'https://defra.github.io/digital-waste-tracking-api-site/preview/problems/'
-
-  beforeAll(async () => {
-    process.env.ACCESS_CRED_TEST1 = userBasicAuthTest1
-
-    server = await createServer()
-  })
-
-  afterAll(async () => {
-    await server.stop()
-  })
-
+describe(`collection Route Tests version: ${apiVersion}`, () => {
   // Scenario: A Collection is created when a carrier confirms duty of care.
-  it('creates a collection when a valid movementId is provided', async () => {
+  test('creates a collection when a valid movementId is provided', async ({
+    server
+  }) => {
     const getMovementRecordSpy = vi
       .spyOn(movementService, 'getMovementRecord')
       .mockResolvedValue({ id: goodMovementId })
@@ -76,7 +111,9 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
     expect(getMovementRecordSpy).toHaveBeenCalledTimes(1)
   })
 
-  it('creates a collection when a brokerOrDealer is declared', async () => {
+  test('creates a collection when a brokerOrDealer is declared', async ({
+    server
+  }) => {
     const payload = {
       carrier,
       collectionDateTime,
@@ -106,7 +143,9 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
     expect(getMovementRecordSpy).toHaveBeenCalledTimes(1)
   })
 
-  it('returns an error when a declared brokerOrDealer has no details', async () => {
+  test('returns an error when a declared brokerOrDealer has no details', async ({
+    server
+  }) => {
     const invalidPayload = {
       carrier,
       collectionDateTime,
@@ -138,7 +177,9 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
     expect(getMovementRecordSpy).toHaveBeenCalledTimes(0)
   })
 
-  it('returns an error when brokerOrDealer details are given without declaring involvement', async () => {
+  test('returns an error when brokerOrDealer details are given without declaring involvement', async ({
+    server
+  }) => {
     const invalidPayload = {
       carrier,
       collectionDateTime,
@@ -170,7 +211,9 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
     expect(getMovementRecordSpy).toHaveBeenCalledTimes(0)
   })
 
-  it('creates a collection when supportingReferences are provided', async () => {
+  test('creates a collection when supportingReferences are provided', async ({
+    server
+  }) => {
     const payload = {
       carrier,
       collectionDateTime,
@@ -200,7 +243,9 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
     expect(getMovementRecordSpy).toHaveBeenCalledTimes(1)
   })
 
-  it('returns an error when a supportingReference has an unrecognised label', async () => {
+  test('returns an error when a supportingReference has an unrecognised label', async ({
+    server
+  }) => {
     const invalidPayload = {
       carrier,
       collectionDateTime,
@@ -233,7 +278,9 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
     expect(getMovementRecordSpy).toHaveBeenCalledTimes(0)
   })
 
-  it('creates a collection when specialHandlingRequirements are provided', async () => {
+  test('creates a collection when specialHandlingRequirements are provided', async ({
+    server
+  }) => {
     const payload = {
       carrier,
       collectionDateTime,
@@ -263,7 +310,9 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
     expect(getMovementRecordSpy).toHaveBeenCalledTimes(1)
   })
 
-  it('returns an error when specialHandlingRequirements is too long', async () => {
+  test('returns an error when specialHandlingRequirements is too long', async ({
+    server
+  }) => {
     const invalidPayload = {
       isDutyOfCareConfirmed,
       specialHandlingRequirements: 'A'.repeat(longText + 1)
@@ -290,7 +339,9 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
     expect(getMovementRecordSpy).toHaveBeenCalledTimes(0)
   })
 
-  it('rejects when no organisation was forwarded (unknown or disabled API code)', async () => {
+  test('rejects when no organisation was forwarded (unknown or disabled API code)', async ({
+    server
+  }) => {
     const getMovementRecordSpy = vi.spyOn(movementService, 'getMovementRecord')
 
     const { statusCode, result } = await server.inject({
@@ -314,7 +365,9 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
     expect(getMovementRecordSpy).toHaveBeenCalledTimes(0)
   })
 
-  it('handles when given movementId is not in the system', async () => {
+  test('handles when given movementId is not in the system', async ({
+    server
+  }) => {
     const getMovementRecordSpy = vi
       .spyOn(movementService, 'getMovementRecord')
       .mockResolvedValue(null)
@@ -339,7 +392,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
     expect(getMovementRecordSpy).toHaveBeenCalledTimes(1)
   })
 
-  it('returns an error when carrier is missing', async () => {
+  test('returns an error when carrier is missing', async ({ server }) => {
     const invalidPayload = {
       collectionDateTime,
       collectionSite,
@@ -376,7 +429,9 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
     expect(getMovementRecordSpy).toHaveBeenCalledTimes(0)
   })
 
-  it('returns a 400 when the movementId is not in the ID format', async () => {
+  test('returns a 400 when the movementId is not in the ID format', async ({
+    server
+  }) => {
     const getMovementRecordSpy = vi.spyOn(movementService, 'getMovementRecord')
     const badMovementId = 'NONEXISTENT'
 
@@ -404,7 +459,9 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
 
   // apiCode is sent in the x-api-code header and resolved by the
   // external API, so the backend rejects it in the body.
-  it('returns an error when apiCode is sent in the body', async () => {
+  test('returns an error when apiCode is sent in the body', async ({
+    server
+  }) => {
     const invalidPayload = {
       apiCode: apiCode1,
       isDutyOfCareConfirmed,
@@ -445,7 +502,9 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
 
   // Scenario: A Collection isn't created when a carrier fails to submit a duty
   // of care.
-  it('returns an error when the duty of care confirmation is missing and does not create a collection', async () => {
+  test('returns an error when the duty of care confirmation is missing and does not create a collection', async ({
+    server
+  }) => {
     const invalidPayload = { carrier, collectionDateTime, collectionSite }
     const getMovementRecordSpy = vi.spyOn(movementService, 'getMovementRecord')
     const url = `/${apiVersion}/movements/${goodMovementId}/collection`
@@ -478,7 +537,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
     expect(getMovementRecordSpy).toHaveBeenCalledTimes(0)
   })
 
-  it('handles error when getting movement', async () => {
+  test('handles error when getting movement', async ({ server }) => {
     const getMovementRecordSpy = vi
       .spyOn(movementService, 'getMovementRecord')
       .mockRejectedValue(new Error(errorMessage))
@@ -505,7 +564,9 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
     expect(getMovementRecordSpy).toHaveBeenCalledTimes(1)
   })
 
-  it('should immediately return 401 when request is unauthenticated', async () => {
+  test('should immediately return 401 when request is unauthenticated', async ({
+    server
+  }) => {
     const getMovementRecordSpy = vi.spyOn(movementService, 'getMovementRecord')
 
     const { statusCode, result } = await server.inject({
@@ -528,7 +589,9 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
     expect(getMovementRecordSpy).toHaveBeenCalledTimes(0)
   })
 
-  it('returns a 500 when the response body does not match the response schema', async () => {
+  test('returns a 500 when the response body does not match the response schema', async ({
+    server
+  }) => {
     vi.spyOn(movementService, 'getMovementRecord').mockResolvedValueOnce({
       id: goodMovementId
     })
@@ -554,38 +617,6 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
     })
   })
 
-  const submitCollection = (payload) =>
-    server.inject({
-      method: 'POST',
-      url: `/${apiVersion}/movements/${goodMovementId}/collection`,
-      payload,
-      headers: {
-        'x-cdp-request-id': traceId,
-        Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
-      }
-    })
-
-  const expectCollectionCreated = async (payload) => {
-    vi.spyOn(movementService, 'getMovementRecord').mockResolvedValue({
-      id: goodMovementId
-    })
-
-    const { statusCode } = await submitCollection(payload)
-
-    expect(statusCode).toEqual(HTTP_STATUS.CREATED)
-  }
-
-  const expectCollectionRejected = async (payload, errors) => {
-    const getMovementRecordSpy = vi.spyOn(movementService, 'getMovementRecord')
-
-    const { statusCode, result } = await submitCollection(payload)
-
-    expect(statusCode).toEqual(HTTP_STATUS.BAD_REQUEST)
-    expect(result.errors).toEqual(errors)
-    expect(getMovementRecordSpy).toHaveBeenCalledTimes(0)
-  }
-
   describe('Feature: Declare where and when the waste is collected', () => {
     // Background: authenticated, with a valid API Code and Movement ID — every
     // request here sends the basic auth and organisation headers to
@@ -605,13 +636,17 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
     })
 
     describe('Scenario: A Collection is created with valid collection site details', () => {
-      it('creates the collection with a valid actual collection date and time, a collection address and contact details', async () => {
+      test('creates the collection with a valid actual collection date and time, a collection address and contact details', async ({
+        expectCollectionCreated
+      }) => {
         await expectCollectionCreated(goodPayload)
       })
     })
 
     describe("Scenario: A Collection isn't created without an actual collection date and time", () => {
-      it('rejects the collection, saying the actual collection date and time is required', async () => {
+      test('rejects the collection, saying the actual collection date and time is required', async ({
+        expectCollectionRejected
+      }) => {
         await expectCollectionRejected(
           without('collectionDateTime', goodPayload),
           [notProvided('collectionDateTime', '/collectionDateTime')]
@@ -620,14 +655,18 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
     })
 
     describe("Scenario Outline: A Collection isn't created without a collection address", () => {
-      it('rejects a collection site with no address, saying the address is required', async () => {
+      test('rejects a collection site with no address, saying the address is required', async ({
+        expectCollectionRejected
+      }) => {
         await expectCollectionRejected(
           withCollectionSite(without('address', collectionSite)),
           [notProvided('address', '/collectionSite/address')]
         )
       })
 
-      it('rejects a collection with no collection site, saying it is required', async () => {
+      test('rejects a collection with no collection site, saying it is required', async ({
+        expectCollectionRejected
+      }) => {
         await expectCollectionRejected(without('collectionSite', goodPayload), [
           notProvided('collectionSite', '/collectionSite')
         ])
@@ -635,7 +674,9 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
     })
 
     describe("Scenario: A Collection isn't created without a collection contact detail", () => {
-      it('rejects a valid collection address with no contact details, saying they are required', async () => {
+      test('rejects a valid collection address with no contact details, saying they are required', async ({
+        expectCollectionRejected
+      }) => {
         await expectCollectionRejected(
           withCollectionSite(without('contactDetails', collectionSite)),
           [notProvided('contactDetails', '/collectionSite/contactDetails')]
@@ -644,28 +685,33 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
     })
 
     describe("Scenario: A Collection isn't created when an actual collection date and time is invalid", () => {
-      it.each([
+      test.for([
         ['2026-01-15'],
         ['09:30:00'],
         ['15/01/2026 09:30'],
         ['2026-01-15T09:30:00'],
         ['not-a-date']
-      ])('rejects an actual collection date and time of %j', async (value) => {
-        await expectCollectionRejected(
-          { ...goodPayload, collectionDateTime: value },
-          [
-            {
-              errorType: 'InvalidFormat',
-              message: "must match format 'date-time'",
-              pointer: '/collectionDateTime'
-            }
-          ]
-        )
-      })
+      ])(
+        'rejects an actual collection date and time of %j',
+        async ([value], { expectCollectionRejected }) => {
+          await expectCollectionRejected(
+            { ...goodPayload, collectionDateTime: value },
+            [
+              {
+                errorType: 'InvalidFormat',
+                message: "must match format 'date-time'",
+                pointer: '/collectionDateTime'
+              }
+            ]
+          )
+        }
+      )
     })
 
     describe("Scenario: A Collection isn't created when a collection contact detail is invalid", () => {
-      it('rejects an invalid collection email address', async () => {
+      test('rejects an invalid collection email address', async ({
+        expectCollectionRejected
+      }) => {
         await expectCollectionRejected(
           withCollectionSite({
             ...collectionSite,
@@ -681,7 +727,9 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
         )
       })
 
-      it('rejects an invalid collection phone number', async () => {
+      test('rejects an invalid collection phone number', async ({
+        expectCollectionRejected
+      }) => {
         await expectCollectionRejected(
           withCollectionSite({
             ...collectionSite,
@@ -696,7 +744,9 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
         )
       })
 
-      it('rejects both an invalid email address and phone number, reporting each', async () => {
+      test('rejects both an invalid email address and phone number, reporting each', async ({
+        expectCollectionRejected
+      }) => {
         await expectCollectionRejected(
           withCollectionSite({
             ...collectionSite,
@@ -720,9 +770,9 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
     })
 
     describe("Scenario: A Collection isn't created when the collection postcode is invalid", () => {
-      it.each([['NOT A POSTCODE'], ['12345'], ['TE1']])(
+      test.for([['NOT A POSTCODE'], ['12345'], ['TE1']])(
         'rejects a collection postcode of %j',
-        async (postcode) => {
+        async ([postcode], { expectCollectionRejected }) => {
           await expectCollectionRejected(
             withCollectionSite({
               ...collectionSite,

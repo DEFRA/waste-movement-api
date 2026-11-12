@@ -10,13 +10,12 @@ describe('#startServer', () => {
     vi.stubEnv('PORT', '3098')
     createServerImport = await import('#/server.js')
     startServerImport = await import('./start-server.js')
-
-    createServerSpy = vi.spyOn(createServerImport, 'createServer')
-    hapiServerSpy = vi.spyOn(hapi, 'server')
   })
 
-  afterAll(() => {
-    vi.resetAllMocks()
+  // restoreMocks undoes every spy before each test
+  beforeEach(() => {
+    createServerSpy = vi.spyOn(createServerImport, 'createServer')
+    hapiServerSpy = vi.spyOn(hapi, 'server')
   })
 
   describe('When server starts', () => {

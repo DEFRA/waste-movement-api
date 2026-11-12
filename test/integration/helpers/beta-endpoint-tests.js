@@ -1,36 +1,27 @@
 import { randomUUID } from 'node:crypto'
 import { HTTP_STATUS } from '@defra/waste-movement-utils'
 import { expectStandardHeaders } from './expect-standard-headers.js'
-import { betaHttpRequest } from './http.js'
+import { test } from './fixtures.js'
 import { expectResponseBodyHasCorrectShape } from './expect-response-body-has-shape.js'
 import { expectProblemResponse } from './expect-problem-response.js'
 
 /**
  * Shared test suite for beta endpoint versions.
- * Parameterised by version, e.g. 'beta-3'.
+ * Parameterised by version, e.g. 'beta-3'. Its tests get the service from the
+ * suite's fixtures (see fixtures.js).
  *
  * Usage:
- *   describe(`beta-${version}`, () => {
- *     let testService, wasteTrackingStub
- *     beforeAll/afterAll setup...
- *     describeBetaEndpointTests(version, testService, testData)
+ *   describe(apiVersion, () => {
+ *     describeBetaEndpointTests(apiVersion, testData)
  *   })
  */
-export function describeBetaEndpointTests(version, getTestService, testData) {
+export function describeBetaEndpointTests(version, testData) {
   const basePath = `/${version}`
   const movementsEndpoint = `${basePath}/movements`
 
-  /**
-   * Makes a request against the versioned beta API.
-   * @param {string} path - path relative to the version base, e.g. '/movements'
-   * @param {object} [options] - options passed through to httpRequest
-   */
-  const requestBeta = (path, options) =>
-    betaHttpRequest(getTestService().baseUrl, `${basePath}${path}`, options)
-
   describe(`${version} - Error Formatting & RFC9457 Compliance`, () => {
-    it('returns RFC9457 format for validation errors', async () => {
-      const response = await requestBeta('/movements', {
+    test('returns RFC9457 format for validation errors', async ({ api }) => {
+      const response = await api(movementsEndpoint, {
         method: 'POST',
         requestId: randomUUID(),
         body: {}
@@ -44,8 +35,10 @@ export function describeBetaEndpointTests(version, getTestService, testData) {
     })
 
     // Beta routes rely only on the organisation forwarded by the external API.
-    it('rejects a request with no organisation forwarded (unknown or disabled API code)', async () => {
-      const response = await requestBeta('/movements', {
+    test('rejects a request with no organisation forwarded (unknown or disabled API code)', async ({
+      api
+    }) => {
+      const response = await api(movementsEndpoint, {
         method: 'POST',
         requestId: randomUUID(),
         body: testData.minimalProducer,
@@ -60,8 +53,10 @@ export function describeBetaEndpointTests(version, getTestService, testData) {
       expect(response.body.detail).toEqual('the API Code supplied is invalid')
     })
 
-    it('returns RFC9457 format for missing authentication', async () => {
-      const response = await requestBeta('/movements', {
+    test('returns RFC9457 format for missing authentication', async ({
+      api
+    }) => {
+      const response = await api(movementsEndpoint, {
         method: 'POST',
         requestId: randomUUID(),
         body: testData.minimalProducer,
@@ -75,9 +70,9 @@ export function describeBetaEndpointTests(version, getTestService, testData) {
       })
     })
 
-    it('returns RFC9457 format for 404 Not Found', async () => {
+    test('returns RFC9457 format for 404 Not Found', async ({ api }) => {
       // Generic 404 test - verify format compliance, not endpoint-specific behavior
-      const response = await requestBeta('/NONEXISTENT', {
+      const response = await api(`${basePath}/NONEXISTENT`, {
         method: 'GET',
         requestId: randomUUID()
       })
@@ -91,8 +86,8 @@ export function describeBetaEndpointTests(version, getTestService, testData) {
   })
 
   describe(`${version} - Content Negotiation`, () => {
-    it('returns problem+json for errors', async () => {
-      const { status, headers } = await requestBeta('/movements', {
+    test('returns problem+json for errors', async ({ api }) => {
+      const { status, headers } = await api(movementsEndpoint, {
         method: 'POST',
         body: {}
       })
@@ -101,8 +96,8 @@ export function describeBetaEndpointTests(version, getTestService, testData) {
       expect(headers.get('content-type')).toContain('application/problem+json')
     })
 
-    it('returns json for successful responses', async () => {
-      const { status, headers } = await requestBeta('/movements', {
+    test('returns json for successful responses', async ({ api }) => {
+      const { status, headers } = await api(movementsEndpoint, {
         method: 'POST',
         body: testData.minimalProducer
       })
@@ -113,9 +108,11 @@ export function describeBetaEndpointTests(version, getTestService, testData) {
   })
 
   describe(`${version} - Request Tracing`, () => {
-    it('echoes x-cdp-request-id as x-request-id on success responses', async () => {
+    test('echoes x-cdp-request-id as x-request-id on success responses', async ({
+      api
+    }) => {
       const traceId = `test-trace-beta${version}`
-      const { status, headers } = await requestBeta('/movements', {
+      const { status, headers } = await api(movementsEndpoint, {
         method: 'POST',
         body: testData.minimalProducer,
         requestId: traceId
@@ -125,9 +122,11 @@ export function describeBetaEndpointTests(version, getTestService, testData) {
       expect(headers.get('x-request-id')).toBe(traceId)
     })
 
-    it('echoes x-cdp-request-id as x-request-id header and returns requestId in body on error responses', async () => {
+    test('echoes x-cdp-request-id as x-request-id header and returns requestId in body on error responses', async ({
+      api
+    }) => {
       const traceId = `test-trace-beta${version}`
-      const { status, body, headers } = await requestBeta('/movements', {
+      const { status, body, headers } = await api(movementsEndpoint, {
         method: 'POST',
         body: {},
         requestId: traceId,
@@ -139,8 +138,8 @@ export function describeBetaEndpointTests(version, getTestService, testData) {
       expect(body).toEqual(expect.objectContaining({ requestId: traceId }))
     })
 
-    it('generates request ID when not provided', async () => {
-      const { status, headers, body } = await requestBeta('/movements', {
+    test('generates request ID when not provided', async ({ api }) => {
+      const { status, headers, body } = await api(movementsEndpoint, {
         method: 'POST',
         body: testData.minimalProducer
       })
@@ -157,8 +156,10 @@ export function describeBetaEndpointTests(version, getTestService, testData) {
     // generated ID: the shared error formatter only includes one when
     // x-cdp-request-id was sent. Accepted because CDP always sends that
     // header in deployed environments, so every other error test supplies one.
-    it('omits request ID from error responses when not provided', async () => {
-      const { status, body, headers } = await requestBeta('/movements', {
+    test('omits request ID from error responses when not provided', async ({
+      api
+    }) => {
+      const { status, body, headers } = await api(movementsEndpoint, {
         method: 'POST',
         body: {}
       })
@@ -170,8 +171,10 @@ export function describeBetaEndpointTests(version, getTestService, testData) {
   })
 
   describe(`${version} - Standard Headers`, () => {
-    it('includes standard security and content headers in success responses', async () => {
-      const { status, headers } = await requestBeta('/movements', {
+    test('includes standard security and content headers in success responses', async ({
+      api
+    }) => {
+      const { status, headers } = await api(movementsEndpoint, {
         method: 'POST',
         body: testData.minimalProducer
       })
@@ -180,8 +183,10 @@ export function describeBetaEndpointTests(version, getTestService, testData) {
       expectStandardHeaders(headers)
     })
 
-    it('includes standard security headers in error responses', async () => {
-      const { status, headers } = await requestBeta('/movements', {
+    test('includes standard security headers in error responses', async ({
+      api
+    }) => {
+      const { status, headers } = await api(movementsEndpoint, {
         method: 'POST',
         body: {}
       })
@@ -194,10 +199,10 @@ export function describeBetaEndpointTests(version, getTestService, testData) {
   })
 
   describe(`${version} - Missing Required Fields`, () => {
-    it('rejects apiCode in the body', async () => {
+    test('rejects apiCode in the body', async ({ api }) => {
       // apiCode is sent in the x-api-code header, which the external API
       // resolves, so the body has none.
-      const response = await requestBeta('/movements', {
+      const response = await api(movementsEndpoint, {
         method: 'POST',
         requestId: randomUUID(),
         body: { apiCode: testData.apiCode1, ...testData.minimalProducer }
@@ -210,8 +215,8 @@ export function describeBetaEndpointTests(version, getTestService, testData) {
       })
     })
 
-    it('rejects missing producer', async () => {
-      const response = await requestBeta('/movements', {
+    test('rejects missing producer', async ({ api }) => {
+      const response = await api(movementsEndpoint, {
         method: 'POST',
         requestId: randomUUID(),
         body: {}

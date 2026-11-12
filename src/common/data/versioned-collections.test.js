@@ -76,7 +76,6 @@ describe('sweepStaleRevisions', () => {
       },
       'Dropped beta-3-r0-movements, a stale beta-3 data revision'
     )
-    infoSpy.mockRestore()
   })
 
   test('ignores a collection that is already gone', async () => {
@@ -85,21 +84,19 @@ describe('sweepStaleRevisions', () => {
     const namespaceNotFound = Object.assign(new Error('ns not found'), {
       code: 26
     })
-    const collectionSpy = vi
-      .spyOn(db, 'collection')
-      .mockReturnValue({ drop: () => Promise.reject(namespaceNotFound) })
+    vi.spyOn(db, 'collection').mockReturnValue({
+      drop: () => Promise.reject(namespaceNotFound)
+    })
 
     await expect(sweepStaleRevisions(db, 'beta-3', 1)).resolves.toHaveLength(2)
-    collectionSpy.mockRestore()
   })
 
   test('rethrows any other failure to drop', async () => {
     const failure = Object.assign(new Error('not authorised'), { code: 13 })
-    const collectionSpy = vi
-      .spyOn(db, 'collection')
-      .mockReturnValue({ drop: () => Promise.reject(failure) })
+    vi.spyOn(db, 'collection').mockReturnValue({
+      drop: () => Promise.reject(failure)
+    })
 
     await expect(sweepStaleRevisions(db, 'beta-3', 1)).rejects.toBe(failure)
-    collectionSpy.mockRestore()
   })
 })

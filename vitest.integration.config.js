@@ -7,6 +7,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     clearMocks: true,
+    restoreMocks: true,
     include: [
       // Each version's own suite, beside its code
       'src/versions/*/tests/**/*.test.js',

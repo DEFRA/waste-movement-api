@@ -205,6 +205,12 @@ npm run test
 
 They share one in-memory MongoDB replica set for the whole run (`.vite/mongo-memory-server.js`).
 
+Route tests take a `server` from [test/helpers/route-fixtures.js](test/helpers/route-fixtures.js), a
+[Vitest fixture](https://vitest.dev/guide/test-context.html) with one initialised server per file,
+and extend it with their own, e.g. a `submit` for their route. Mocks are cleared and spies restored
+before every test (`clearMocks` and `restoreMocks` in `vitest.config.js`), so a test never inherits
+another's stub.
+
 ### Integration tests
 
 To run the service over real HTTP, against an in-memory MongoDB and a stub waste-tracking-id-backend:

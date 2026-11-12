@@ -1,10 +1,7 @@
 import { HTTP_STATUS } from '@defra/waste-movement-utils'
 import { apiCode1 } from '#test/data/api-codes.js'
-import {
-  requestBasicAuthTest1,
-  userBasicAuthTest1
-} from '#test/data/basic-auth.js'
-import { createServer } from '#/server.js'
+import { requestBasicAuthTest1 } from '#test/data/basic-auth.js'
+import { test as routeTest } from '#test/helpers/route-fixtures.js'
 import {
   forwardedOrganisationId,
   organisationHeaders
@@ -56,38 +53,73 @@ vi.mock('#/common/http/waste-tracking.js', () => ({
   createDeliveryId: vi.fn().mockResolvedValue('25KMT4Z9')
 }))
 
-describe(`POST /${apiVersion}/receipts`, () => {
-  let server
-  const url = `/${apiVersion}/receipts`
-  const traceId = 'trace-id-123'
-  const authHeaders = { Authorization: `Basic ${requestBasicAuthTest1}` }
-  const tracedHeaders = { 'x-cdp-request-id': traceId }
-  const tracedAuthHeaders = {
-    ...authHeaders,
-    ...tracedHeaders,
-    ...organisationHeaders
+const url = `/${apiVersion}/receipts`
+const traceId = 'trace-id-123'
+const authHeaders = { Authorization: `Basic ${requestBasicAuthTest1}` }
+const tracedHeaders = { 'x-cdp-request-id': traceId }
+const tracedAuthHeaders = {
+  ...authHeaders,
+  ...tracedHeaders,
+  ...organisationHeaders
+}
+
+const expectedTypeBase =
+  'https://defra.github.io/digital-waste-tracking-api-site/preview/problems/'
+
+// The Receipt ID is the Delivery ID minted for the receipt.
+const receiptId = '25KMT4Z9'
+
+const test = routeTest.extend({
+  // Submits an undocumented receipt
+  submit: async ({ server }, use) => {
+    await use((payload) =>
+      server.inject({
+        method: 'POST',
+        url,
+        payload,
+        headers: tracedAuthHeaders
+      })
+    )
+  },
+
+  // How many receipts (deliveries) are stored
+  storedReceipts: async ({ server }, use) => {
+    await use(() =>
+      server.db.collection(collectionName('deliveries')).countDocuments()
+    )
+  },
+
+  // Expects the receipt to be accepted and stored
+  expectCreated: async ({ submit, storedReceipts }, use) => {
+    await use(async (payload) => {
+      const { statusCode, result } = await submit(payload)
+
+      expect(statusCode).toEqual(HTTP_STATUS.CREATED)
+      expect(result.data).toEqual({ deliveryId: receiptId })
+      expect(await storedReceipts()).toBe(1)
+    })
+  },
+
+  // Expects the receipt to be rejected, with nothing stored
+  expectRejected: async ({ submit, storedReceipts }, use) => {
+    await use(async (payload, errors) => {
+      const { statusCode, result } = await submit(payload)
+
+      expect(statusCode).toEqual(HTTP_STATUS.BAD_REQUEST)
+      expect(result.errors).toEqual(errors)
+      expect(await storedReceipts()).toBe(0)
+    })
   }
+})
 
-  const expectedTypeBase =
-    'https://defra.github.io/digital-waste-tracking-api-site/preview/problems/'
-
-  beforeAll(async () => {
-    process.env.ACCESS_CRED_TEST1 = userBasicAuthTest1
-
-    server = await createServer()
-    await server.initialize()
-  })
-
-  afterAll(async () => {
-    await server.stop()
-  })
-
-  beforeEach(async () => {
-    vi.clearAllMocks()
+describe(`POST /${apiVersion}/receipts`, () => {
+  test.beforeEach(async ({ server }) => {
     await server.db.collection(collectionName('deliveries')).deleteMany({})
   })
 
-  it('mints an empty delivery, acknowledges receipt against it and returns 201 with the envelope shape', async () => {
+  test('mints an empty delivery, acknowledges receipt against it and returns 201 with the envelope shape', async ({
+    server
+  }) => {
     const { statusCode, result, headers } = await server.inject({
       method: 'POST',
       url,
@@ -120,7 +152,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
   })
 
   // Scenario: A Receipt is created when more than one treatment is declared.
-  it('acknowledges receipt when a waste item has more than one treatment', async () => {
+  test('acknowledges receipt when a waste item has more than one treatment', async ({
+    server
+  }) => {
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -149,7 +183,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
   })
 
-  it('acknowledges receipt when a brokerOrDealer and supportingReferences are provided', async () => {
+  test('acknowledges receipt when a brokerOrDealer and supportingReferences are provided', async ({
+    server
+  }) => {
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -172,7 +208,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
   })
 
-  it('returns a 400 when a declared brokerOrDealer has no details', async () => {
+  test('returns a 400 when a declared brokerOrDealer has no details', async ({
+    server
+  }) => {
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -195,7 +233,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     )
   })
 
-  it('returns a 400 when a supportingReference has an unrecognised label', async () => {
+  test('returns a 400 when a supportingReference has an unrecognised label', async ({
+    server
+  }) => {
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -219,7 +259,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     )
   })
 
-  it('echoes the inbound x-cdp-request-id as x-request-id', async () => {
+  test('echoes the inbound x-cdp-request-id as x-request-id', async ({
+    server
+  }) => {
     const { headers } = await server.inject({
       method: 'POST',
       url,
@@ -236,7 +278,7 @@ describe(`POST /${apiVersion}/receipts`, () => {
     expect(headers['x-request-id']).toEqual(traceId)
   })
 
-  it('returns a 400 when required fields are missing', async () => {
+  test('returns a 400 when required fields are missing', async ({ server }) => {
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -281,7 +323,7 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
   })
 
-  it('returns a 400 when carrier is missing', async () => {
+  test('returns a 400 when carrier is missing', async ({ server }) => {
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -306,7 +348,7 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
   })
 
-  it('returns a 400 when wasteItems is missing', async () => {
+  test('returns a 400 when wasteItems is missing', async ({ server }) => {
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -332,7 +374,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
   })
 
   // Scenario: A Receipt isn't created when no treatment is declared.
-  it('returns a 400 when a waste item has no treatments', async () => {
+  test('returns a 400 when a waste item has no treatments', async ({
+    server
+  }) => {
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -363,7 +407,7 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
   })
 
-  it('returns a 400 when receiver is missing', async () => {
+  test('returns a 400 when receiver is missing', async ({ server }) => {
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -390,7 +434,7 @@ describe(`POST /${apiVersion}/receipts`, () => {
 
   // apiCode is sent in the x-api-code header and resolved by the
   // external API, so the backend rejects it in the body.
-  it('returns a 400 when apiCode is sent in the body', async () => {
+  test('returns a 400 when apiCode is sent in the body', async ({ server }) => {
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -422,7 +466,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
   })
 
-  it('returns a 400 when no organisation was forwarded (unknown or disabled API code)', async () => {
+  test('returns a 400 when no organisation was forwarded (unknown or disabled API code)', async ({
+    server
+  }) => {
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -446,7 +492,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
   })
 
-  it('returns a 500 when persisting the delivery fails', async () => {
+  test('returns a 500 when persisting the delivery fails', async ({
+    server
+  }) => {
     const error = 'Database connection failed'
     vi.spyOn(delivery, 'createDeliveryRecord').mockRejectedValue(
       new Error(error)
@@ -474,7 +522,7 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
   })
 
-  it('returns 401 when unauthenticated', async () => {
+  test('returns 401 when unauthenticated', async ({ server }) => {
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -498,7 +546,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
   })
 
-  it('returns a 500 when the response body does not match the response schema', async () => {
+  test('returns a 500 when the response body does not match the response schema', async ({
+    server
+  }) => {
     vi.mocked(createDeliveryId).mockResolvedValueOnce(42)
     // Stubbed so the bad id isn't rejected by the deliveries collection first.
     vi.spyOn(delivery, 'createDeliveryRecord').mockResolvedValueOnce({})
@@ -527,16 +577,6 @@ describe(`POST /${apiVersion}/receipts`, () => {
 
   // Shared by the business scenario features below.
   // Background: they are authenticated and have a valid API Code.
-  // The Receipt ID is the Delivery ID minted for the receipt.
-  const receiptId = '25KMT4Z9'
-
-  const submit = (payload) =>
-    server.inject({
-      method: 'POST',
-      url,
-      payload,
-      headers: tracedAuthHeaders
-    })
 
   // A receipt needs at least one treatment on every waste item.
   const receiptItem = (item) => ({ ...item, treatments: [treatment] })
@@ -552,33 +592,6 @@ describe(`POST /${apiVersion}/receipts`, () => {
     ...extra
   })
 
-  const storedReceipts = () =>
-    server.db.collection(collectionName('deliveries')).countDocuments()
-
-  // An earlier test leaves createDeliveryRecord mocked to fail, and
-  // clearAllMocks doesn't undo that, so the scenarios restore the real one.
-  const restoreCreateDeliveryRecord = () => {
-    if (vi.isMockFunction(delivery.createDeliveryRecord)) {
-      delivery.createDeliveryRecord.mockRestore()
-    }
-  }
-
-  const expectCreated = async (payload) => {
-    const { statusCode, result } = await submit(payload)
-
-    expect(statusCode).toEqual(HTTP_STATUS.CREATED)
-    expect(result.data).toEqual({ deliveryId: receiptId })
-    expect(await storedReceipts()).toBe(1)
-  }
-
-  const expectRejected = async (payload, errors) => {
-    const { statusCode, result } = await submit(payload)
-
-    expect(statusCode).toEqual(HTTP_STATUS.BAD_REQUEST)
-    expect(result.errors).toEqual(errors)
-    expect(await storedReceipts()).toBe(0)
-  }
-
   const consignmentNoteRequired = {
     errorType: 'NotProvided',
     message:
@@ -587,8 +600,6 @@ describe(`POST /${apiVersion}/receipts`, () => {
   }
 
   describe('Feature: Describing the waste when recording the receipt of undocumented waste', () => {
-    beforeEach(restoreCreateDeliveryRecord)
-
     // Every classification declares its POPs and hazardous properties; these
     // scenarios aren't about them, so it's always none unless the test says
     // otherwise.
@@ -623,7 +634,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     }
 
     describe('Scenario: A Receipt is created when non-hazardous waste is described without a consignment code', () => {
-      it('creates the receipt for a waste description and a non-hazardous EWC code', async () => {
+      test('creates the receipt for a waste description and a non-hazardous EWC code', async ({
+        expectCreated
+      }) => {
         await expectCreated(
           withClassification({
             wasteDescription: 'Paper and cardboard',
@@ -634,7 +647,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe('Scenario: A Receipt is created when a consignment code is given for non-hazardous waste', () => {
-      it('creates the receipt for a non-hazardous EWC code and a valid consignment code', async () => {
+      test('creates the receipt for a non-hazardous EWC code and a valid consignment code', async ({
+        expectCreated
+      }) => {
         await expectCreated(
           withWasteItems([nonHazardousItem], { consignmentNote })
         )
@@ -642,19 +657,27 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe('Scenario: A Receipt is created when a mirror EWC code is provided', () => {
-      it.each([
+      test.for([
         ['1 EWC code', ['170504']],
         ['2 EWC codes', ['170504', '191212']],
         ['5 EWC codes', ['170504', '191212', '170904', '170604', '200101']]
-      ])('creates the receipt with %s', async (_, ewcCodes) => {
-        await expectCreated(
-          withClassification({ wasteDescription: 'Soil and stones', ewcCodes })
-        )
-      })
+      ])(
+        'creates the receipt with %s',
+        async ([_, ewcCodes], { expectCreated }) => {
+          await expectCreated(
+            withClassification({
+              wasteDescription: 'Soil and stones',
+              ewcCodes
+            })
+          )
+        }
+      )
     })
 
     describe("Scenario Outline: A Receipt isn't created when the waste description is missing", () => {
-      it('rejects a waste description that is not provided as required', async () => {
+      test('rejects a waste description that is not provided as required', async ({
+        expectRejected
+      }) => {
         await expectRejected(withClassification({ ewcCodes: ['200101'] }), [
           {
             errorType: 'NotProvided',
@@ -664,7 +687,7 @@ describe(`POST /${apiVersion}/receipts`, () => {
         ])
       })
 
-      it('rejects a waste description of ""', async () => {
+      test('rejects a waste description of ""', async ({ expectRejected }) => {
         await expectRejected(
           withClassification({ wasteDescription: '', ewcCodes: ['200101'] }),
           [
@@ -682,7 +705,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
       const description = { wasteDescription: 'Paper and cardboard' }
 
       // Examples: Not provided or empty
-      it('rejects EWC codes that are not provided as required', async () => {
+      test('rejects EWC codes that are not provided as required', async ({
+        expectRejected
+      }) => {
         await expectRejected(withClassification(description), [
           {
             errorType: 'NotProvided',
@@ -693,7 +718,7 @@ describe(`POST /${apiVersion}/receipts`, () => {
       })
 
       // "" isn't six digits, so it's reported as a format error.
-      it('rejects an EWC code of ""', async () => {
+      test('rejects an EWC code of ""', async ({ expectRejected }) => {
         await expectRejected(
           withClassification({ ...description, ewcCodes: [''] }),
           [ewcCodeBadlyFormatted('/wasteItems/0/classification/ewcCodes/0')]
@@ -701,9 +726,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
       })
 
       // Examples: Not recognised
-      it.each(['2001', '200101*', '20 01 01'])(
+      test.for(['2001', '200101*', '20 01 01'])(
         'rejects an EWC code of %p as not in the recognised format',
-        async (code) => {
+        async (code, { expectRejected }) => {
           await expectRejected(
             withClassification({ ...description, ewcCodes: [code] }),
             [ewcCodeBadlyFormatted('/wasteItems/0/classification/ewcCodes/0')]
@@ -711,7 +736,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
         }
       )
 
-      it('rejects an EWC code of "999999" as not recognised', async () => {
+      test('rejects an EWC code of "999999" as not recognised', async ({
+        expectRejected
+      }) => {
         await expectRejected(
           withClassification({ ...description, ewcCodes: ['999999'] }),
           [ewcCodeNotRecognised('/wasteItems/0/classification/ewcCodes/0')]
@@ -720,7 +747,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe("Scenario: A Receipt isn't created when more than 5 EWC codes are declared", () => {
-      it('rejects 6 EWC codes, saying no more than 5 are permitted', async () => {
+      test('rejects 6 EWC codes, saying no more than 5 are permitted', async ({
+        expectRejected
+      }) => {
         await expectRejected(
           withClassification({
             wasteDescription: 'Soil and stones',
@@ -745,19 +774,24 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe('Scenario Outline: A Receipt is created when hazardous waste has a consignment code', () => {
-      it.each([
+      test.for([
         ['EA / NRW', 'SMITHS/A1234'],
         ['SEPA', 'SA1234567'],
         ['NIEA', 'DA1234567']
-      ])('creates the receipt with a %s code of %s', async (_, code) => {
-        await expectCreated(
-          withWasteItems([hazardousItem], { consignmentNote: { code } })
-        )
-      })
+      ])(
+        'creates the receipt with a %s code of %s',
+        async ([_, code], { expectCreated }) => {
+          await expectCreated(
+            withWasteItems([hazardousItem], { consignmentNote: { code } })
+          )
+        }
+      )
     })
 
     describe('Scenario: A Receipt is created when hazardous waste has a reason for no consignment code', () => {
-      it('creates the receipt with a hazardous EWC code and a reason', async () => {
+      test('creates the receipt with a hazardous EWC code and a reason', async ({
+        expectCreated
+      }) => {
         await expectCreated(
           withWasteItems([hazardousItem], {
             consignmentNote: { reasonForNoCode }
@@ -767,14 +801,18 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe("Scenario: A Receipt isn't created when hazardous waste has neither a consignment code nor a reason", () => {
-      it('rejects a code and a reason that are not provided, saying a reason is required', async () => {
+      test('rejects a code and a reason that are not provided, saying a reason is required', async ({
+        expectRejected
+      }) => {
         await expectRejected(
           withWasteItems([hazardousItem], { consignmentNote: {} }),
           [reasonRequired]
         )
       })
 
-      it('rejects a receipt with no consignment note at all, saying a code or a reason is required', async () => {
+      test('rejects a receipt with no consignment note at all, saying a code or a reason is required', async ({
+        expectRejected
+      }) => {
         await expectRejected(withWasteItems([hazardousItem]), [
           consignmentNoteRequired
         ])
@@ -782,7 +820,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe("Scenario: A Receipt isn't created when any one of several wastes is hazardous and has neither a consignment code nor a reason", () => {
-      it('rejects one hazardous and one non-hazardous waste with no consignment code or reason', async () => {
+      test('rejects one hazardous and one non-hazardous waste with no consignment code or reason', async ({
+        expectRejected
+      }) => {
         await expectRejected(
           withWasteItems([nonHazardousItem, hazardousItem], {
             consignmentNote: {}
@@ -793,12 +833,15 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe("Scenario Outline: A Receipt isn't created when the reason for no consignment code is null or empty", () => {
-      it.each([
+      test.for([
         ['""', '', 'OutOfRange', 'must NOT have fewer than 1 characters'],
         ['null', null, 'InvalidType', 'must be string']
       ])(
         'rejects a reason of %s rather than reading it as not provided',
-        async (_, reasonForNoCode, errorType, message) => {
+        async (
+          [_, reasonForNoCode, errorType, message],
+          { expectRejected }
+        ) => {
           await expectRejected(
             withWasteItems([hazardousItem], {
               consignmentNote: { reasonForNoCode }
@@ -816,9 +859,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe("Scenario Outline: A Receipt isn't created when the consignment code is invalid", () => {
-      it.each(['12345', 'ABC/123', 'SD1234567'])(
+      test.for(['12345', 'ABC/123', 'SD1234567'])(
         'rejects a consignment code of %p as not in a recognised format',
-        async (code) => {
+        async (code, { expectRejected }) => {
           await expectRejected(
             withWasteItems([hazardousItem], { consignmentNote: { code } }),
             [
@@ -834,7 +877,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe("Scenario: A Receipt isn't created when both a consignment code and a reason are given", () => {
-      it('rejects the reason as not permitted', async () => {
+      test('rejects the reason as not permitted', async ({
+        expectRejected
+      }) => {
         await expectRejected(
           withWasteItems([hazardousItem], {
             consignmentNote: { ...consignmentNote, reasonForNoCode }
@@ -851,7 +896,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe("Scenario: A Receipt isn't created when any one of several wastes is described with missing or invalid details", () => {
-      it('reports each invalid detail against the waste it belongs to', async () => {
+      test('reports each invalid detail against the waste it belongs to', async ({
+        expectRejected
+      }) => {
         await expectRejected(
           withWasteItems([
             nonHazardousItem,
@@ -874,8 +921,6 @@ describe(`POST /${apiVersion}/receipts`, () => {
   })
 
   describe('Feature: Declaring persistent organic pollutants when creating a receipt of undocumented waste', () => {
-    beforeEach(restoreCreateDeliveryRecord)
-
     const withPops = (pops) =>
       withWasteItems([
         {
@@ -891,20 +936,20 @@ describe(`POST /${apiVersion}/receipts`, () => {
       `${popsPointer}/components/${index}/${field}`
 
     describe('Scenario: A Receipt is created when the waste is declared as not containing POPs', () => {
-      it('creates the receipt', async () => {
+      test('creates the receipt', async ({ expectCreated }) => {
         await expectCreated(withPops({ isPresent: false }))
       })
     })
 
     describe('Scenario Outline: A Receipt is created when a POP is declared with an amount', () => {
       // HBCDD in the scenario is HBCD in the reference data.
-      it.each([
+      test.for([
         ['PFOA', 0.5],
         ['PFOS', 12],
         ['HBCD', 0.001]
       ])(
         'creates the receipt with a POP code of %s and an amount of %s mg/kg',
-        async (code, amount) => {
+        async ([code, amount], { expectCreated }) => {
           await expectCreated(
             withComponents([{ code, unit: 'MG_PER_KG', amount }])
           )
@@ -913,33 +958,35 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe('Scenario Outline: A Receipt is created when a POP is declared against its threshold', () => {
-      it.each([
+      test.for([
         ['less than', 'LESS_THAN'],
         ['equal to', 'EQUAL_TO'],
         ['greater than', 'GREATER_THAN']
       ])(
         'creates the receipt with a PFOA concentration %s its threshold',
-        async (_, threshold) => {
+        async ([_, threshold], { expectCreated }) => {
           await expectCreated(withComponents([{ code: 'PFOA', threshold }]))
         }
       )
     })
 
     describe('Scenario Outline: A Receipt is created when the source of the POP details is declared', () => {
-      it.each([
+      test.for([
         ['Government guidance', 'GUIDANCE'],
         ['Provided with the waste', 'PROVIDED_WITH_WASTE'],
         ['Own testing or analysis', 'OWN_TESTING']
       ])(
         'creates the receipt with a source of %s',
-        async (_, componentsSource) => {
+        async ([_, componentsSource], { expectCreated }) => {
           await expectCreated(withPops({ ...popsPresent, componentsSource }))
         }
       )
     })
 
     describe('Scenario: A Receipt is created when more than one POP is declared', () => {
-      it('creates the receipt with a code and an amount or threshold for each POP', async () => {
+      test('creates the receipt with a code and an amount or threshold for each POP', async ({
+        expectCreated
+      }) => {
         await expectCreated(
           withComponents([
             { code: 'PFOA', unit: 'MG_PER_KG', amount: 0.5 },
@@ -951,7 +998,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
 
     describe("Scenario Outline: A Receipt isn't created when whether the waste contains POPs is missing or invalid", () => {
       // Examples: Not provided or empty
-      it('rejects whether the waste contains POPs not being provided, as required', async () => {
+      test('rejects whether the waste contains POPs not being provided, as required', async ({
+        expectRejected
+      }) => {
         await expectRejected(withPops({}), [
           {
             errorType: 'NotProvided',
@@ -962,9 +1011,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
       })
 
       // Examples: Not recognised. "" isn't true or false either.
-      it.each(['', 'Maybe', 'Unknown'])(
+      test.for(['', 'Maybe', 'Unknown'])(
         'rejects whether the waste contains POPs of %p as not true or false',
-        async (isPresent) => {
+        async (isPresent, { expectRejected }) => {
           await expectRejected(withPops({ isPresent }), [
             {
               errorType: 'InvalidType',
@@ -975,7 +1024,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
         }
       )
 
-      it('rejects POPs not being declared at all', async () => {
+      test('rejects POPs not being declared at all', async ({
+        expectRejected
+      }) => {
         const { pops: _, ...withoutPops } = nonHazardousItem.classification
         await expectRejected(
           withWasteItems([
@@ -993,7 +1044,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe("Scenario: A Receipt isn't created when POP details are given for waste declared as not containing POPs", () => {
-      it('rejects the POP details as not permitted', async () => {
+      test('rejects the POP details as not permitted', async ({
+        expectRejected
+      }) => {
         await expectRejected(withPops({ ...popsPresent, isPresent: false }), [
           {
             errorType: 'NotAllowed',
@@ -1010,7 +1063,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe("Scenario: A Receipt isn't created when the waste contains POPs but none are declared", () => {
-      it('rejects no POPs being declared, saying at least one is required', async () => {
+      test('rejects no POPs being declared, saying at least one is required', async ({
+        expectRejected
+      }) => {
         const { components, ...withoutComponents } = popsPresent
         await expectRejected(withPops(withoutComponents), [
           {
@@ -1021,7 +1076,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
         ])
       })
 
-      it('rejects an empty list of POPs, saying at least one is required', async () => {
+      test('rejects an empty list of POPs, saying at least one is required', async ({
+        expectRejected
+      }) => {
         await expectRejected(withComponents([]), [
           {
             errorType: 'OutOfRange',
@@ -1034,7 +1091,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
 
     describe("Scenario Outline: A Receipt isn't created when the POP code is missing or invalid", () => {
       // Examples: Not provided or empty
-      it('rejects a POP code that is not provided, as required', async () => {
+      test('rejects a POP code that is not provided, as required', async ({
+        expectRejected
+      }) => {
         await expectRejected(
           withComponents([{ unit: 'MG_PER_KG', amount: 0.5 }]),
           [
@@ -1047,7 +1106,7 @@ describe(`POST /${apiVersion}/receipts`, () => {
         )
       })
 
-      it('rejects a POP code of ""', async () => {
+      test('rejects a POP code of ""', async ({ expectRejected }) => {
         await expectRejected(withComponents([{ ...popComponent, code: '' }]), [
           {
             errorType: 'OutOfRange',
@@ -1058,9 +1117,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
       })
 
       // Examples: Not recognised
-      it.each(['Mercury', 'ABC123'])(
+      test.for(['Mercury', 'ABC123'])(
         'rejects a POP code of %p as not recognised',
-        async (code) => {
+        async (code, { expectRejected }) => {
           await expectRejected(withComponents([{ ...popComponent, code }]), [
             {
               errorType: 'InvalidValue',
@@ -1073,7 +1132,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe("Scenario: A Receipt isn't created when a POP has neither an amount nor a threshold", () => {
-      it('rejects the POP, saying an amount or threshold is required', async () => {
+      test('rejects the POP, saying an amount or threshold is required', async ({
+        expectRejected
+      }) => {
         await expectRejected(withComponents([{ code: 'PFOA' }]), [
           {
             errorType: 'NotProvided',
@@ -1085,7 +1146,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe("Scenario: A Receipt isn't created when a POP has both an amount and a threshold", () => {
-      it('rejects the threshold, saying only one of the two is permitted', async () => {
+      test('rejects the threshold, saying only one of the two is permitted', async ({
+        expectRejected
+      }) => {
         await expectRejected(
           withComponents([{ ...popComponent, threshold: 'LESS_THAN' }]),
           [
@@ -1100,7 +1163,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe("Scenario: A Receipt isn't created when a POP has an amount but no unit", () => {
-      it('rejects the POP, saying a unit is required', async () => {
+      test('rejects the POP, saying a unit is required', async ({
+        expectRejected
+      }) => {
         await expectRejected(withComponents([{ code: 'PFOA', amount: 0.5 }]), [
           {
             errorType: 'NotProvided',
@@ -1113,9 +1178,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
 
     describe("Scenario Outline: A Receipt isn't created when the POP unit is invalid", () => {
       // Examples: Not recognised, including in the wrong case.
-      it.each(['', 'mg_per_kg', 'MG/KG', 'PPM'])(
+      test.for(['', 'mg_per_kg', 'MG/KG', 'PPM'])(
         'rejects a POP unit of %p as not recognised',
-        async (unit) => {
+        async (unit, { expectRejected }) => {
           await expectRejected(withComponents([{ ...popComponent, unit }]), [
             {
               errorType: 'InvalidValue',
@@ -1130,9 +1195,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     describe("Scenario Outline: A Receipt isn't created when the POP amount is invalid", () => {
       // Examples: Not a number. An amount that isn't known is left out,
       // and a threshold given instead.
-      it.each(['', null, '0.5'])(
+      test.for(['', null, '0.5'])(
         'rejects a POP amount of %p as not a number',
-        async (amount) => {
+        async (amount, { expectRejected }) => {
           await expectRejected(withComponents([{ ...popComponent, amount }]), [
             {
               errorType: 'InvalidType',
@@ -1144,9 +1209,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
       )
 
       // Examples: Not greater than 0
-      it.each([0, -1])(
+      test.for([0, -1])(
         'rejects a POP amount of %p as not greater than 0',
-        async (amount) => {
+        async (amount, { expectRejected }) => {
           await expectRejected(withComponents([{ ...popComponent, amount }]), [
             {
               errorType: 'OutOfRange',
@@ -1159,9 +1224,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe("Scenario Outline: A Receipt isn't created when the POP threshold is invalid", () => {
-      it.each(['Greater than', 'Above'])(
+      test.for(['Greater than', 'Above'])(
         'rejects a POP threshold of %p as not recognised',
-        async (threshold) => {
+        async (threshold, { expectRejected }) => {
           await expectRejected(withComponents([{ code: 'PFOA', threshold }]), [
             {
               errorType: 'InvalidValue',
@@ -1176,7 +1241,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
 
     describe("Scenario Outline: A Receipt isn't created when the source of the POP details is missing or invalid", () => {
       // Examples: Not provided or empty
-      it('rejects a source that is not provided, as required', async () => {
+      test('rejects a source that is not provided, as required', async ({
+        expectRejected
+      }) => {
         const { componentsSource, ...withoutSource } = popsPresent
         await expectRejected(withPops(withoutSource), [
           {
@@ -1188,9 +1255,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
       })
 
       // Examples: Not recognised. "" isn't one of the sources either.
-      it.each(['', 'Supplier', 'Unknown'])(
+      test.for(['', 'Supplier', 'Unknown'])(
         'rejects a source of %p as not recognised',
-        async (componentsSource) => {
+        async (componentsSource, { expectRejected }) => {
           await expectRejected(withPops({ ...popsPresent, componentsSource }), [
             {
               errorType: 'InvalidValue',
@@ -1204,7 +1271,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe("Scenario: A Receipt isn't created when any one of several POPs is declared with missing or invalid details", () => {
-      it('reports each invalid detail against the POP it belongs to', async () => {
+      test('reports each invalid detail against the POP it belongs to', async ({
+        expectRejected
+      }) => {
         await expectRejected(
           withComponents([
             popComponent,
@@ -1240,8 +1309,6 @@ describe(`POST /${apiVersion}/receipts`, () => {
   })
 
   describe('Feature: Declaring the hazardous properties of the waste', () => {
-    beforeEach(restoreCreateDeliveryRecord)
-
     const withHazardous = (hazardous, extra) =>
       withWasteItems(
         [
@@ -1288,15 +1355,15 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe('Scenario: A Receipt is created when the waste is declared as having no hazardous properties', () => {
-      it('creates the receipt', async () => {
+      test('creates the receipt', async ({ expectCreated }) => {
         await expectCreated(withHazardous({ isPresent: false }))
       })
     })
 
     describe('Scenario Outline: A Receipt is created when hazardous properties are declared', () => {
-      it.each([[['HP_4']], [['HP_4', 'HP_8']]])(
+      test.for([[['HP_4']], [['HP_4', 'HP_8']]])(
         'creates the receipt with codes %p',
-        async (codes) => {
+        async ([codes], { expectCreated }) => {
           await expectCreated(
             withHazardousProperties({ ...hazardousPresent, codes })
           )
@@ -1305,7 +1372,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe("Scenario Outline: A Receipt isn't created when whether the waste has hazardous properties is missing or invalid", () => {
-      it('rejects whether the waste has hazardous properties not being provided, as required', async () => {
+      test('rejects whether the waste has hazardous properties not being provided, as required', async ({
+        expectRejected
+      }) => {
         await expectRejected(withHazardous({}), [
           {
             errorType: 'NotProvided',
@@ -1316,9 +1385,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
       })
 
       // "" isn't true or false either.
-      it.each(['', 'Maybe', 'Unknown'])(
+      test.for(['', 'Maybe', 'Unknown'])(
         'rejects whether the waste has hazardous properties of %p as not true or false',
-        async (isPresent) => {
+        async (isPresent, { expectRejected }) => {
           await expectRejected(withHazardous({ isPresent }), [
             {
               errorType: 'InvalidType',
@@ -1329,7 +1398,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
         }
       )
 
-      it('rejects hazardous properties not being declared at all', async () => {
+      test('rejects hazardous properties not being declared at all', async ({
+        expectRejected
+      }) => {
         const { hazardous: _, ...withoutHazardous } =
           nonHazardousItem.classification
         await expectRejected(
@@ -1348,7 +1419,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe("Scenario Outline: A Receipt isn't created when the waste has hazardous properties but the codes are missing or invalid", () => {
-      it('rejects codes not being provided, saying they are required', async () => {
+      test('rejects codes not being provided, saying they are required', async ({
+        expectRejected
+      }) => {
         await expectRejected(withHazardousProperties(withoutCodes), [
           {
             errorType: 'NotProvided',
@@ -1358,7 +1431,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
         ])
       })
 
-      it('rejects an empty list of codes, saying at least one is required', async () => {
+      test('rejects an empty list of codes, saying at least one is required', async ({
+        expectRejected
+      }) => {
         await expectRejected(
           withHazardousProperties({ ...hazardousPresent, codes: [] }),
           [
@@ -1371,7 +1446,7 @@ describe(`POST /${apiVersion}/receipts`, () => {
         )
       })
 
-      it('rejects codes of "" as not a list', async () => {
+      test('rejects codes of "" as not a list', async ({ expectRejected }) => {
         await expectRejected(
           withHazardousProperties({ ...hazardousPresent, codes: '' }),
           [
@@ -1384,9 +1459,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
         )
       })
 
-      it.each(['HP_22', 'Flammable'])(
+      test.for(['HP_22', 'Flammable'])(
         'rejects a code of %p as not recognised',
-        async (code) => {
+        async (code, { expectRejected }) => {
           await expectRejected(
             withHazardousProperties({ ...hazardousPresent, codes: [code] }),
             [codeNotRecognised(`${codesPointer}/0`)]
@@ -1394,7 +1469,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
         }
       )
 
-      it('reports each unrecognised code against that code', async () => {
+      test('reports each unrecognised code against that code', async ({
+        expectRejected
+      }) => {
         await expectRejected(
           withHazardousProperties({
             ...hazardousPresent,
@@ -1409,7 +1486,7 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe("Scenario: A Receipt isn't created when codes are given for waste declared as having no hazardous properties", () => {
-      it('rejects the codes as not permitted', async () => {
+      test('rejects the codes as not permitted', async ({ expectRejected }) => {
         await expectRejected(
           withHazardous({ isPresent: false, codes: ['HP_4'] }),
           [
@@ -1424,7 +1501,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe("Scenario: A Receipt isn't created when several wastes declare invalid hazardous properties", () => {
-      it('reports each invalid declaration against the waste it belongs to', async () => {
+      test('reports each invalid declaration against the waste it belongs to', async ({
+        expectRejected
+      }) => {
         const withDeclaration = (hazardous) => ({
           ...nonHazardousItem,
           classification: { ...nonHazardousItem.classification, hazardous }
@@ -1450,7 +1529,7 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe('Scenario Outline: A Receipt is created when hazardous components are declared', () => {
-      it.each([
+      test.for([
         [[hazardousComponent]],
         [[{ name: 'Lead compounds', threshold: 'GREATER_THAN' }]],
         [
@@ -1459,15 +1538,20 @@ describe(`POST /${apiVersion}/receipts`, () => {
             { name: 'Lead compounds', threshold: 'EQUAL_TO' }
           ]
         ]
-      ])('creates the receipt with components %j', async (components) => {
-        await expectCreated(
-          withHazardousProperties({ ...hazardousPresent, components })
-        )
-      })
+      ])(
+        'creates the receipt with components %j',
+        async ([components], { expectCreated }) => {
+          await expectCreated(
+            withHazardousProperties({ ...hazardousPresent, components })
+          )
+        }
+      )
     })
 
     describe('Scenario: A Receipt is created when no hazardous components need reporting', () => {
-      it('creates the receipt with a source and no components', async () => {
+      test('creates the receipt with a source and no components', async ({
+        expectCreated
+      }) => {
         const { components: _, ...withoutComponents } = hazardousPresent
         await expectCreated(
           withHazardousProperties({
@@ -1479,7 +1563,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe("Scenario: A Receipt isn't created when hazardous details are given for waste declared as having no hazardous properties", () => {
-      it('rejects each detail as not permitted', async () => {
+      test('rejects each detail as not permitted', async ({
+        expectRejected
+      }) => {
         const notAllowed = (field) => ({
           errorType: 'NotAllowed',
           message: "Not allowed unless 'isPresent' is true",
@@ -1498,7 +1584,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe("Scenario: A Receipt isn't created when the waste is hazardous but neither components nor not applicable are declared", () => {
-      it('rejects no components, saying they are required', async () => {
+      test('rejects no components, saying they are required', async ({
+        expectRejected
+      }) => {
         const { components: _, ...withoutComponents } = hazardousPresent
         await expectRejected(withHazardousProperties(withoutComponents), [
           {
@@ -1509,7 +1597,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
         ])
       })
 
-      it('rejects the source not being provided, saying it is required', async () => {
+      test('rejects the source not being provided, saying it is required', async ({
+        expectRejected
+      }) => {
         const { componentsSource: _, ...withoutSource } = hazardousPresent
         await expectRejected(withHazardousProperties(withoutSource), [
           {
@@ -1522,7 +1612,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe("Scenario: A Receipt isn't created when components are given although declared not applicable", () => {
-      it('rejects the components as not permitted', async () => {
+      test('rejects the components as not permitted', async ({
+        expectRejected
+      }) => {
         await expectRejected(
           withHazardousProperties({
             ...hazardousPresent,
@@ -1540,7 +1632,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe("Scenario: A Receipt isn't created when any one of several hazardous components is declared with missing or invalid details", () => {
-      it('reports each invalid detail against the component it belongs to', async () => {
+      test('reports each invalid detail against the component it belongs to', async ({
+        expectRejected
+      }) => {
         await expectRejected(
           withHazardousProperties({
             ...hazardousPresent,
@@ -1572,7 +1666,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe('Scenario: A Receipt is created without a consignment note when a hazardous EWC code is declared as having no hazardous properties', () => {
-      it('creates the receipt for fluorescent tubes declared as not hazardous', async () => {
+      test('creates the receipt for fluorescent tubes declared as not hazardous', async ({
+        expectCreated
+      }) => {
         await expectCreated(
           withWasteItems([
             {
@@ -1588,7 +1684,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
     })
 
     describe("Scenario: A Receipt isn't created without a consignment note when a non-hazardous EWC code is declared as having hazardous properties", () => {
-      it('rejects the receipt, saying a consignment note is required', async () => {
+      test('rejects the receipt, saying a consignment note is required', async ({
+        expectRejected
+      }) => {
         await expectRejected(
           withHazardous({ ...hazardousPresent, codes: ['HP_4'] }),
           [consignmentNoteRequired]
@@ -1598,26 +1696,29 @@ describe(`POST /${apiVersion}/receipts`, () => {
   })
 
   describe('Feature: Recording when the waste was actually received, with no delivery record', () => {
-    beforeEach(restoreCreateDeliveryRecord)
-
     const withReceiptDateTime = (value = receiptDateTime) =>
       withWasteItems([nonHazardousItem], { receiptDateTime: value })
 
     describe('Scenario: A receipt is recorded when a valid date and time of receipt is declared with no delivery record', () => {
-      it.each([
+      test.for([
         ['2026-10-14T09:30:00Z'],
         ['2026-10-14T10:30:00+01:00'],
         // A moment ago: anything not later than the time of submission.
         [new Date(Date.now() - 1000).toISOString()]
-      ])('records the receipt received at %p', async (value) => {
-        await expectCreated(withReceiptDateTime(value))
-      })
+      ])(
+        'records the receipt received at %p',
+        async ([value], { expectCreated }) => {
+          await expectCreated(withReceiptDateTime(value))
+        }
+      )
     })
 
     describe("Scenario Outline: A receipt isn't recorded when the date and time of receipt is missing or invalid", () => {
       const pointer = '/receiptDateTime'
 
-      it('rejects a date and time of receipt that is not provided, as required', async () => {
+      test('rejects a date and time of receipt that is not provided, as required', async ({
+        expectRejected
+      }) => {
         const { receiptDateTime: _, ...payload } = withReceiptDateTime()
         await expectRejected(payload, [
           {
@@ -1628,7 +1729,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
         ])
       })
 
-      it('rejects a date and time of receipt of "", as required', async () => {
+      test('rejects a date and time of receipt of "", as required', async ({
+        expectRejected
+      }) => {
         await expectRejected(withReceiptDateTime(''), [
           {
             errorType: 'NotProvided',
@@ -1638,9 +1741,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
         ])
       })
 
-      it.each(['14/10/2026', '2026-13-01T10:00:00Z', 'Yesterday'])(
+      test.for(['14/10/2026', '2026-13-01T10:00:00Z', 'Yesterday'])(
         'rejects a date and time of receipt of %p as not a valid date and time',
-        async (value) => {
+        async (value, { expectRejected }) => {
           await expectRejected(withReceiptDateTime(value), [
             {
               errorType: 'InvalidFormat',
@@ -1651,7 +1754,9 @@ describe(`POST /${apiVersion}/receipts`, () => {
         }
       )
 
-      it('rejects a date and time of receipt in the future', async () => {
+      test('rejects a date and time of receipt in the future', async ({
+        expectRejected
+      }) => {
         await expectRejected(withReceiptDateTime('2099-01-01T09:00:00Z'), [
           {
             errorType: 'OutOfRange',

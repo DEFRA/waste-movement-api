@@ -1,6 +1,5 @@
 import { HTTP_STATUS } from '@defra/waste-movement-utils'
-import { startTestService } from './helpers/test-service.js'
-import { betaHttpRequest, httpRequest } from './helpers/http.js'
+import { test } from './helpers/fixtures.js'
 import { expectStandardHeaders } from './helpers/expect-standard-headers.js'
 import { expectProblemResponse } from './helpers/expect-problem-response.js'
 
@@ -10,22 +9,15 @@ const requestId = 'test-trace-errors'
 // route: there is no older error shape to keep, as there is for the Phase 1
 // routes in waste-movement-backend.
 describe('errors', () => {
-  let testService
-
-  beforeAll(async () => {
-    testService = await startTestService()
-  })
-
-  afterAll(async () => {
-    await testService.stop()
-  })
-
-  it('returns 401 when no Authorization header is sent on a protected route', async () => {
-    const response = await betaHttpRequest(
-      testService.baseUrl,
-      '/beta-3/movements',
-      { method: 'POST', auth: false, requestId, body: {} }
-    )
+  test('returns 401 when no Authorization header is sent on a protected route', async ({
+    api
+  }) => {
+    const response = await api('/beta-3/movements', {
+      method: 'POST',
+      auth: false,
+      requestId,
+      body: {}
+    })
 
     expectProblemResponse(response, {
       status: HTTP_STATUS.UNAUTHORIZED,
@@ -38,20 +30,18 @@ describe('errors', () => {
     })
   })
 
-  it('returns 401 for credentials that are not recognised', async () => {
-    const response = await betaHttpRequest(
-      testService.baseUrl,
-      '/beta-3/movements',
-      {
-        method: 'POST',
-        auth: false,
-        requestId,
-        headers: {
-          authorization: `Basic ${Buffer.from('test1:wrong').toString('base64')}`
-        },
-        body: {}
-      }
-    )
+  test('returns 401 for credentials that are not recognised', async ({
+    api
+  }) => {
+    const response = await api('/beta-3/movements', {
+      method: 'POST',
+      auth: false,
+      requestId,
+      headers: {
+        authorization: `Basic ${Buffer.from('test1:wrong').toString('base64')}`
+      },
+      body: {}
+    })
 
     expectProblemResponse(response, {
       status: HTTP_STATUS.UNAUTHORIZED,
@@ -60,12 +50,14 @@ describe('errors', () => {
     })
   })
 
-  it('returns 400 with an errors[] entry per problem when the payload is invalid', async () => {
-    const response = await betaHttpRequest(
-      testService.baseUrl,
-      '/beta-3/deliveries',
-      { method: 'POST', requestId, body: { movementIds: [] } }
-    )
+  test('returns 400 with an errors[] entry per problem when the payload is invalid', async ({
+    api
+  }) => {
+    const response = await api('/beta-3/deliveries', {
+      method: 'POST',
+      requestId,
+      body: { movementIds: [] }
+    })
 
     expectProblemResponse(response, {
       status: HTTP_STATUS.BAD_REQUEST,
@@ -84,17 +76,15 @@ describe('errors', () => {
     )
   })
 
-  it('returns 400 for malformed JSON in the request body', async () => {
-    const response = await betaHttpRequest(
-      testService.baseUrl,
-      '/beta-3/movements',
-      {
-        method: 'POST',
-        requestId,
-        headers: { 'content-type': 'application/json' },
-        body: '{'
-      }
-    )
+  test('returns 400 for malformed JSON in the request body', async ({
+    api
+  }) => {
+    const response = await api('/beta-3/movements', {
+      method: 'POST',
+      requestId,
+      headers: { 'content-type': 'application/json' },
+      body: '{'
+    })
 
     expectProblemResponse(response, {
       status: HTTP_STATUS.BAD_REQUEST,
@@ -104,12 +94,8 @@ describe('errors', () => {
     expect(response.body.detail).toEqual('Invalid request payload JSON format')
   })
 
-  it('returns 404 for an unknown path', async () => {
-    const response = await httpRequest(
-      testService.baseUrl,
-      '/this-route-does-not-exist',
-      { requestId }
-    )
+  test('returns 404 for an unknown path', async ({ http }) => {
+    const response = await http('/this-route-does-not-exist', { requestId })
 
     expectProblemResponse(response, {
       status: HTTP_STATUS.NOT_FOUND,

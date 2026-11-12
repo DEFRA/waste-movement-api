@@ -5,6 +5,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     clearMocks: true,
+    restoreMocks: true,
     fileParallelism: false,
     // The integration tests have their own config: vitest.integration.config.js
     exclude: [

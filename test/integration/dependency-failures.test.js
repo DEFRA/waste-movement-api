@@ -1,7 +1,5 @@
 import { HTTP_STATUS } from '@defra/waste-movement-utils'
-import { startTestService } from './helpers/test-service.js'
-import { createWasteTrackingStub } from './helpers/waste-tracking-stub.js'
-import { betaHttpRequest } from './helpers/http.js'
+import { test } from './helpers/fixtures.js'
 import { PROBLEM_TYPE_BASE } from './helpers/problem-types.js'
 import {
   carrier,
@@ -32,18 +30,15 @@ const minimalMovement = {
 // this is kept to the minimum needed to prove failures actually propagate as
 // HTTP errors rather than being silently swallowed.
 describe('dependency failures', () => {
-  let testService
-  let wasteTrackingStub
-
-  const createMovement = (requestId) =>
-    betaHttpRequest(testService.baseUrl, '/beta-3/movements', {
+  const createMovement = (api, requestId) =>
+    api('/beta-3/movements', {
       method: 'POST',
       body: minimalMovement,
       requestId
     })
 
   // With no ID minted, nothing is stored either
-  const expectBadGateway = async ({ status, body }, requestId) => {
+  const expectBadGateway = async (service, { status, body }, requestId) => {
     expect(status).toEqual(HTTP_STATUS.BAD_GATEWAY)
     expect(body).toEqual({
       type: `${PROBLEM_TYPE_BASE}/bad-gateway`,
@@ -53,40 +48,29 @@ describe('dependency failures', () => {
       requestId
     })
     expect(
-      await testService.db.collection(movementsCollection).countDocuments()
+      await service.db.collection(movementsCollection).countDocuments()
     ).toBe(0)
   }
 
-  beforeAll(async () => {
-    wasteTrackingStub = createWasteTrackingStub()
-    await wasteTrackingStub.start()
-    testService = await startTestService({
-      wasteTrackingUrl: wasteTrackingStub.baseUrl
-    })
+  // nextFails and wasteTrackingDown put the stub back after the test, even
+  // when it fails, so the next test gets a working one.
+  test('POST /beta-3/movements returns a Bad Gateway when GET /next fails', async ({
+    api,
+    service,
+    nextFails
+  }) => {
+    const response = await createMovement(api, 'test-trace-next-fails')
+
+    await expectBadGateway(service, response, 'test-trace-next-fails')
   })
 
-  afterAll(async () => {
-    await testService.stop()
-    await wasteTrackingStub.stop()
-  })
+  test('POST /beta-3/movements returns a Bad Gateway when waste-tracking-id-backend is unreachable', async ({
+    api,
+    service,
+    wasteTrackingDown
+  }) => {
+    const response = await createMovement(api, 'test-trace-unreachable')
 
-  it('POST /beta-3/movements returns a Bad Gateway when GET /next fails', async () => {
-    wasteTrackingStub.respondWith({ statusCode: 500 })
-
-    const response = await createMovement('test-trace-next-fails')
-
-    wasteTrackingStub.respondWith()
-
-    await expectBadGateway(response, 'test-trace-next-fails')
-  })
-
-  it('POST /beta-3/movements returns a Bad Gateway when waste-tracking-id-backend is unreachable', async () => {
-    await wasteTrackingStub.stop()
-
-    const response = await createMovement('test-trace-unreachable')
-
-    await wasteTrackingStub.start()
-
-    await expectBadGateway(response, 'test-trace-unreachable')
+    await expectBadGateway(service, response, 'test-trace-unreachable')
   })
 })

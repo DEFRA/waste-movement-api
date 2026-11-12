@@ -1,10 +1,7 @@
 import { HTTP_STATUS } from '@defra/waste-movement-utils'
 import { apiCode1 } from '#test/data/api-codes.js'
-import {
-  requestBasicAuthTest1,
-  userBasicAuthTest1
-} from '#test/data/basic-auth.js'
-import { createServer } from '#/server.js'
+import { requestBasicAuthTest1 } from '#test/data/basic-auth.js'
+import { test as routeTest } from '#test/helpers/route-fixtures.js'
 import { breakNextResponse } from '#test/helpers/break-next-response.js'
 import { organisationHeaders } from '#test/data/organisation-headers.js'
 import {
@@ -43,45 +40,70 @@ vi.mock('#/common/http/waste-tracking.js', () => ({
   createDeliveryId: vi.fn().mockResolvedValue('25KMT4Z9')
 }))
 
-describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
-  let server
-  const deliveryId = '25KMT4Z9'
-  const url = `/${apiVersion}/deliveries/${deliveryId}/receipt`
-  const traceId = 'trace-id-123'
-  const authHeaders = { Authorization: `Basic ${requestBasicAuthTest1}` }
-  const tracedHeaders = { 'x-cdp-request-id': traceId }
-  const tracedAuthHeaders = {
-    ...authHeaders,
-    ...tracedHeaders,
-    ...organisationHeaders
+const deliveryId = '25KMT4Z9'
+const url = `/${apiVersion}/deliveries/${deliveryId}/receipt`
+const traceId = 'trace-id-123'
+const authHeaders = { Authorization: `Basic ${requestBasicAuthTest1}` }
+const tracedHeaders = { 'x-cdp-request-id': traceId }
+const tracedAuthHeaders = {
+  ...authHeaders,
+  ...tracedHeaders,
+  ...organisationHeaders
+}
+
+const expectedTypeBase =
+  'https://defra.github.io/digital-waste-tracking-api-site/preview/problems/'
+
+const test = routeTest.extend({
+  // Submits a receipt against the delivery
+  submit: async ({ server }, use) => {
+    await use((payload) =>
+      server.inject({
+        method: 'POST',
+        url,
+        payload,
+        headers: tracedAuthHeaders
+      })
+    )
+  },
+
+  // Records the delivery, then expects a receipt against it to be accepted
+  expectCreated: async ({ server, submit }, use) => {
+    await use(async (payload) => {
+      await server.db
+        .collection(collectionName('deliveries'))
+        .insertOne({ deliveryId })
+
+      const { statusCode, result } = await submit(payload)
+
+      expect(statusCode).toEqual(HTTP_STATUS.CREATED)
+      expect(result.data).toEqual({ deliveryId })
+    })
+  },
+
+  // Records the delivery, then expects a receipt against it to be rejected
+  expectRejected: async ({ server, submit }, use) => {
+    await use(async (payload, errors) => {
+      await server.db
+        .collection(collectionName('deliveries'))
+        .insertOne({ deliveryId })
+
+      const { statusCode, result } = await submit(payload)
+
+      expect(statusCode).toEqual(HTTP_STATUS.BAD_REQUEST)
+      expect(result.errors).toEqual(errors)
+    })
   }
+})
 
-  const expectedTypeBase =
-    'https://defra.github.io/digital-waste-tracking-api-site/preview/problems/'
-
-  beforeAll(async () => {
-    process.env.ACCESS_CRED_TEST1 = userBasicAuthTest1
-
-    server = await createServer()
-    await server.initialize()
-  })
-
-  afterAll(async () => {
-    await server.stop()
-  })
-
-  beforeEach(async () => {
-    vi.clearAllMocks()
-    // clearAllMocks doesn't undo a test's mockRejectedValue on
-    // findDeliveryMovementIds, which would otherwise fail every later request
-    // with a 500.
-    if (vi.isMockFunction(delivery.findDeliveryMovementIds)) {
-      delivery.findDeliveryMovementIds.mockRestore()
-    }
+describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
+  test.beforeEach(async ({ server }) => {
     await server.db.collection(collectionName('deliveries')).deleteMany({})
   })
 
-  it('acknowledges receipt against an existing delivery and returns 201 with the envelope shape', async () => {
+  test('acknowledges receipt against an existing delivery and returns 201 with the envelope shape', async ({
+    server
+  }) => {
     await server.db
       .collection(collectionName('deliveries'))
       .insertOne({ deliveryId })
@@ -108,7 +130,9 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
   })
 
   // Scenario: A Receipt is created when more than one treatment is declared.
-  it('acknowledges receipt when more than one treatment is declared', async () => {
+  test('acknowledges receipt when more than one treatment is declared', async ({
+    server
+  }) => {
     await server.db
       .collection(collectionName('deliveries'))
       .insertOne({ deliveryId })
@@ -133,7 +157,9 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
     })
   })
 
-  it('acknowledges receipt when a brokerOrDealer and supportingReferences are provided', async () => {
+  test('acknowledges receipt when a brokerOrDealer and supportingReferences are provided', async ({
+    server
+  }) => {
     await server.db
       .collection(collectionName('deliveries'))
       .insertOne({ deliveryId })
@@ -160,7 +186,9 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
     })
   })
 
-  it('returns a 400 when a declared brokerOrDealer has no details', async () => {
+  test('returns a 400 when a declared brokerOrDealer has no details', async ({
+    server
+  }) => {
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -183,7 +211,9 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
     )
   })
 
-  it('returns a 400 when a supportingReference has an unrecognised label', async () => {
+  test('returns a 400 when a supportingReference has an unrecognised label', async ({
+    server
+  }) => {
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -207,7 +237,9 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
     )
   })
 
-  it('echoes the inbound x-cdp-request-id as x-request-id', async () => {
+  test('echoes the inbound x-cdp-request-id as x-request-id', async ({
+    server
+  }) => {
     await server.db
       .collection(collectionName('deliveries'))
       .insertOne({ deliveryId })
@@ -232,7 +264,7 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
     expect(headers['x-request-id']).toEqual(traceId)
   })
 
-  it('returns a 404 when the delivery does not exist', async () => {
+  test('returns a 404 when the delivery does not exist', async ({ server }) => {
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -256,7 +288,9 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
     })
   })
 
-  it('returns a 400 when the deliveryId is not in the ID format', async () => {
+  test('returns a 400 when the deliveryId is not in the ID format', async ({
+    server
+  }) => {
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url: `/${apiVersion}/deliveries/NONEXISTENT/receipt`,
@@ -276,7 +310,7 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
 
   // apiCode is sent in the x-api-code header and resolved by the
   // external API, so the backend rejects it in the body.
-  it('returns a 400 when apiCode is sent in the body', async () => {
+  test('returns a 400 when apiCode is sent in the body', async ({ server }) => {
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -308,7 +342,7 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
     })
   })
 
-  it('returns a 400 when carrier is missing', async () => {
+  test('returns a 400 when carrier is missing', async ({ server }) => {
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -338,7 +372,7 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
     })
   })
 
-  it('returns a 400 when physicalDetails is missing', async () => {
+  test('returns a 400 when physicalDetails is missing', async ({ server }) => {
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -364,7 +398,7 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
   })
 
   // Scenario: A Receipt isn't created when no treatment is declared.
-  it('returns a 400 when treatments is missing', async () => {
+  test('returns a 400 when treatments is missing', async ({ server }) => {
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -396,7 +430,9 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
 
   // Scenario: A Receipt isn't created when any one of several treatments is
   // declared with missing or invalid details.
-  it('returns a 400 naming each invalid field of each invalid treatment', async () => {
+  test('returns a 400 naming each invalid field of each invalid treatment', async ({
+    server
+  }) => {
     const { weight, ...noWeight } = treatment
     const { statusCode, result } = await server.inject({
       method: 'POST',
@@ -428,7 +464,7 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
     ])
   })
 
-  it('returns a 400 when receiver is missing', async () => {
+  test('returns a 400 when receiver is missing', async ({ server }) => {
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -458,7 +494,9 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
     })
   })
 
-  it('returns a 400 when no organisation was forwarded (unknown or disabled API code)', async () => {
+  test('returns a 400 when no organisation was forwarded (unknown or disabled API code)', async ({
+    server
+  }) => {
     await server.db
       .collection(collectionName('deliveries'))
       .insertOne({ deliveryId })
@@ -486,7 +524,7 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
     })
   })
 
-  it('returns a 500 when the delivery lookup fails', async () => {
+  test('returns a 500 when the delivery lookup fails', async ({ server }) => {
     const error = 'Database connection failed'
     vi.spyOn(delivery, 'findDeliveryMovementIds').mockRejectedValue(
       new Error(error)
@@ -514,7 +552,7 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
     })
   })
 
-  it('returns 401 when unauthenticated', async () => {
+  test('returns 401 when unauthenticated', async ({ server }) => {
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -538,7 +576,9 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
     })
   })
 
-  it('returns a 500 when the response body does not match the response schema', async () => {
+  test('returns a 500 when the response body does not match the response schema', async ({
+    server
+  }) => {
     await server.db
       .collection(collectionName('deliveries'))
       .insertOne({ deliveryId })
@@ -575,51 +615,26 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
       treatments
     })
 
-    const submit = (payload) =>
-      server.inject({
-        method: 'POST',
-        url,
-        payload,
-        headers: tracedAuthHeaders
-      })
-
-    const expectCreated = async (payload) => {
-      await server.db
-        .collection(collectionName('deliveries'))
-        .insertOne({ deliveryId })
-
-      const { statusCode, result } = await submit(payload)
-
-      expect(statusCode).toEqual(HTTP_STATUS.CREATED)
-      expect(result.data).toEqual({ deliveryId })
-    }
-
-    const expectRejected = async (payload, errors) => {
-      await server.db
-        .collection(collectionName('deliveries'))
-        .insertOne({ deliveryId })
-
-      const { statusCode, result } = await submit(payload)
-
-      expect(statusCode).toEqual(HTTP_STATUS.BAD_REQUEST)
-      expect(result.errors).toEqual(errors)
-    }
-
     describe('Scenario: A receipt is recorded when a valid date and time of receipt is declared for a known delivery', () => {
-      it.each([
+      test.for([
         ['2026-10-14T09:30:00Z'],
         ['2026-10-14T10:30:00+01:00'],
         // A moment ago: anything not later than the time of submission.
         [new Date(Date.now() - 1000).toISOString()]
-      ])('records the receipt received at %p', async (value) => {
-        await expectCreated(withReceiptDateTime(value))
-      })
+      ])(
+        'records the receipt received at %p',
+        async ([value], { expectCreated }) => {
+          await expectCreated(withReceiptDateTime(value))
+        }
+      )
     })
 
     describe("Scenario Outline: A receipt isn't recorded when the date and time of receipt is missing or invalid", () => {
       const pointer = '/receiptDateTime'
 
-      it('rejects a date and time of receipt that is not provided, as required', async () => {
+      test('rejects a date and time of receipt that is not provided, as required', async ({
+        expectRejected
+      }) => {
         const { receiptDateTime: _, ...payload } = withReceiptDateTime()
         await expectRejected(payload, [
           {
@@ -630,7 +645,9 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
         ])
       })
 
-      it('rejects a date and time of receipt of "", as required', async () => {
+      test('rejects a date and time of receipt of "", as required', async ({
+        expectRejected
+      }) => {
         await expectRejected(withReceiptDateTime(''), [
           {
             errorType: 'NotProvided',
@@ -640,9 +657,9 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
         ])
       })
 
-      it.each(['14/10/2026', '2026-13-01T10:00:00Z', 'Yesterday'])(
+      test.for(['14/10/2026', '2026-13-01T10:00:00Z', 'Yesterday'])(
         'rejects a date and time of receipt of %p as not a valid date and time',
-        async (value) => {
+        async (value, { expectRejected }) => {
           await expectRejected(withReceiptDateTime(value), [
             {
               errorType: 'InvalidFormat',
@@ -653,7 +670,9 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
         }
       )
 
-      it('rejects a date and time of receipt in the future', async () => {
+      test('rejects a date and time of receipt in the future', async ({
+        expectRejected
+      }) => {
         await expectRejected(withReceiptDateTime('2099-01-01T09:00:00Z'), [
           {
             errorType: 'OutOfRange',
@@ -665,7 +684,9 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
     })
   })
 
-  it('logs a rejected receipt against the Movements delivered under it', async () => {
+  test('logs a rejected receipt against the Movements delivered under it', async ({
+    server
+  }) => {
     await server.db
       .collection(collectionName('deliveries'))
       .insertOne({ deliveryId, movementIds: ['25HRA0B1', '25HRA0B2'] })
@@ -681,7 +702,6 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
     const journeyLines = info.mock.calls
       .map(([fields]) => fields)
       .filter((fields) => fields?.event?.action === 'receipt-recorded')
-    info.mockRestore()
 
     expect(statusCode).toEqual(HTTP_STATUS.BAD_REQUEST)
     expect(

@@ -78,10 +78,6 @@ describe('journeyLogger', () => {
     warn = vi.spyOn(createLogger(), 'warn').mockImplementation(() => {})
   })
 
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
-
   const send = (url, payload = {}) =>
     server.inject({ method: 'POST', url, payload })
 
