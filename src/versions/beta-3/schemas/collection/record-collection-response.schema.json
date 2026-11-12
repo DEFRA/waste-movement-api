@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Record collection response",
+  "description": "Response returned when a Collection is recorded.",
+  "type": "object",
+  "required": ["data", "validation"],
+  "properties": {
+    "data": {
+      "type": "null",
+      "description": "No resource id is returned for a Collection; always null.",
+      "examples": [null]
+    },
+    "validation": {
+      "$ref": "../common/validation.schema.json",
+      "description": "Data-quality feedback on the request."
+    }
+  },
+  "additionalProperties": false
+}

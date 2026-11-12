@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Producer base fields",
+  "description": "Placeholder for fields shared by every Producer, regardless of wasteSource. It has none yet.",
+  "type": "object",
+  "properties": {}
+}

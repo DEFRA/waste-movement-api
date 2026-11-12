@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Hazardous properties",
+  "description": "Declares whether a waste item has hazardous properties, and if so which, where the details of its hazardous components came from, and those components. isPresent is required. When it is true, codes, componentsSource and isComponentsNotApplicable are required; at least one component is then required when isComponentsNotApplicable is false, and none is allowed when it is true. When isPresent is false, none of these is allowed. This declaration, not the EWC codes, decides whether the waste is hazardous.",
+  "examples": [
+    {
+      "isPresent": true,
+      "codes": ["HP_4", "HP_8"],
+      "componentsSource": "OWN_TESTING",
+      "isComponentsNotApplicable": false,
+      "components": [
+        {
+          "name": "Mercury",
+          "unit": "MG_PER_KG",
+          "amount": 120
+        },
+        {
+          "name": "Lead compounds",
+          "threshold": "GREATER_THAN"
+        }
+      ]
+    },
+    {
+      "isPresent": true,
+      "codes": ["HP_14"],
+      "componentsSource": "GUIDANCE",
+      "isComponentsNotApplicable": true
+    },
+    {
+      "isPresent": false
+    }
+  ],
+  "type": "object",
+  "if": {
+    "properties": {
+      "isPresent": {
+        "const": true
+      }
+    },
+    "required": ["isPresent"]
+  },
+  "then": {
+    "properties": {
+      "codes": {},
+      "componentsSource": {},
+      "isComponentsNotApplicable": {}
+    },
+    "required": ["codes", "componentsSource", "isComponentsNotApplicable"],
+    "description": "Required when 'isPresent' is true",
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "isComponentsNotApplicable": {
+              "const": false
+            }
+          },
+          "required": ["isComponentsNotApplicable"]
+        },
+        "then": {
+          "properties": {
+            "components": {}
+          },
+          "required": ["components"],
+          "description": "Required when 'isComponentsNotApplicable' is false"
+        }
+      },
+      {
+        "if": {
+          "properties": {
+            "isComponentsNotApplicable": {
+              "const": true
+            }
+          },
+          "required": ["isComponentsNotApplicable"]
+        },
+        "then": {
+          "properties": {
+            "components": {
+              "not": {},
+              "description": "Not allowed when 'isComponentsNotApplicable' is true"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "else": {
+    "properties": {
+      "codes": {
+        "not": {},
+        "description": "Not allowed unless 'isPresent' is true"
+      },
+      "componentsSource": {
+        "not": {},
+        "description": "Not allowed unless 'isPresent' is true"
+      },
+      "isComponentsNotApplicable": {
+        "not": {},
+        "description": "Not allowed unless 'isPresent' is true"
+      },
+      "components": {
+        "not": {},
+        "description": "Not allowed unless 'isPresent' is true"
+      }
+    }
+  },
+  "properties": {
+    "isPresent": {
+      "type": "boolean",
+      "description": "Whether the waste item has any hazardous properties."
+    },
+    "codes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": [
+          "HP_1",
+          "HP_2",
+          "HP_3",
+          "HP_4",
+          "HP_5",
+          "HP_6",
+          "HP_7",
+          "HP_8",
+          "HP_9",
+          "HP_10",
+          "HP_11",
+          "HP_12",
+          "HP_13",
+          "HP_14",
+          "HP_15",
+          "HP_POP"
+        ],
+        "description": "A hazardous property code: HP_1 to HP_15, or HP_POP."
+      },
+      "description": "The hazardous property codes that apply to the waste item. At least one is required when isPresent is true; not allowed otherwise. Duplicates are accepted."
+    },
+    "componentsSource": {
+      "type": "string",
+      "enum": ["GUIDANCE", "PROVIDED_WITH_WASTE", "OWN_TESTING"],
+      "description": "Where the hazardous component details came from: government guidance, provided with the waste, or the receiver's own testing or analysis. Required when isPresent is true, including when isComponentsNotApplicable is true; not allowed otherwise."
+    },
+    "isComponentsNotApplicable": {
+      "type": "boolean",
+      "description": "Whether no hazardous components need reporting for the waste item. Required when isPresent is true; not allowed otherwise. When it is true, components are not allowed; when it is false, at least one component is required."
+    },
+    "components": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "hazardous-component.schema.json"
+      },
+      "description": "The hazardous components the waste item contains. At least one is required when isPresent is true and isComponentsNotApplicable is false; not allowed otherwise."
+    }
+  },
+  "required": ["isPresent"],
+  "additionalProperties": false
+}

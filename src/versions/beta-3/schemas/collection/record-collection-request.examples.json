@@ -1,0 +1,92 @@
+{
+  "withBrokerAndReferences": {
+    "summary": "With broker or dealer, supporting references and special handling",
+    "value": {
+      "carrier": {
+        "organisationName": "Carrier Demo Ltd",
+        "registrationNumber": "CBDU123456",
+        "meansOfTransport": "ROAD",
+        "vehicleRegistration": "AB12 CDE",
+        "contactDetails": {
+          "emailAddress": "carrier@example.com",
+          "phoneNumber": "01234567890"
+        },
+        "address": {
+          "fullAddress": "4 Carrier Lane, Test City",
+          "postcode": "TE1 4CR"
+        }
+      },
+      "collectionDateTime": "2026-01-15T09:30:00Z",
+      "collectionSite": {
+        "address": {
+          "fullAddress": "10 Industrial Way, Test City",
+          "postcode": "TE1 2PQ"
+        },
+        "contactDetails": {
+          "emailAddress": "site@example.com",
+          "phoneNumber": "01234567890"
+        }
+      },
+      "isDutyOfCareConfirmed": true,
+      "brokerOrDealer": {
+        "isPresent": true,
+        "items": [
+          {
+            "organisationName": "Broker Demo Ltd",
+            "registrationNumber": "CBDU654321",
+            "contactDetails": {
+              "emailAddress": "broker@example.com",
+              "phoneNumber": "01112223333"
+            },
+            "address": {
+              "fullAddress": "2 Broker Yard, Test City",
+              "postcode": "TE1 1ST"
+            }
+          }
+        ]
+      },
+      "supportingReferences": [
+        {
+          "label": "PO_NUMBER",
+          "reference": "PO-123456"
+        },
+        {
+          "label": "JOB_NUMBER",
+          "reference": "CARRIER-JOB-001"
+        }
+      ],
+      "specialHandlingRequirements": "Handle with care and keep upright."
+    }
+  },
+  "minimal": {
+    "summary": "carrier only",
+    "value": {
+      "carrier": {
+        "organisationName": "Carrier Demo Ltd",
+        "registrationNumber": "CBDU123456",
+        "meansOfTransport": "ROAD",
+        "vehicleRegistration": "AB12 CDE",
+        "contactDetails": {
+          "emailAddress": "carrier@example.com",
+          "phoneNumber": "01234567890"
+        },
+        "address": {
+          "fullAddress": "4 Carrier Lane, Test City",
+          "postcode": "TE1 4CR"
+        }
+      },
+      "collectionDateTime": "2026-01-15T09:30:00Z",
+      "collectionSite": {
+        "address": {
+          "fullAddress": "10 Industrial Way, Test City",
+          "postcode": "TE1 2PQ"
+        },
+        "contactDetails": {
+          "emailAddress": "site@example.com",
+          "phoneNumber": "01234567890"
+        }
+      },
+      "isDutyOfCareConfirmed": true
+    }
+  }
+}

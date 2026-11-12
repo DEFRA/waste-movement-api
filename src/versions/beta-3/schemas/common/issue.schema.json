@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Issue",
+  "description": "A single problem with a submitted field, located by JSON Pointer.",
+  "examples": [
+    {
+      "pointer": "/producer",
+      "errorType": "NotProvided",
+      "message": "'producer' is required"
+    }
+  ],
+  "type": "object",
+  "required": ["pointer", "errorType", "message"],
+  "properties": {
+    "pointer": {
+      "type": "string",
+      "description": "RFC 6901 JSON Pointer to the field this issue relates to.",
+      "examples": ["/producer"]
+    },
+    "errorType": {
+      "type": "string",
+      "enum": [
+        "NotProvided",
+        "NotAllowed",
+        "InvalidType",
+        "InvalidFormat",
+        "InvalidValue",
+        "OutOfRange",
+        "BusinessRuleViolation",
+        "UnexpectedError"
+      ],
+      "description": "The type of issue.",
+      "examples": ["NotProvided"]
+    },
+    "message": {
+      "type": "string",
+      "description": "Human-readable description of the issue.",
+      "examples": ["'producer' is required"]
+    }
+  },
+  "additionalProperties": false
+}

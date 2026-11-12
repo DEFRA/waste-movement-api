@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Producer (Household)",
+  "description": "Producer fields specific to household waste. organisationName, authorisationNumber, sicCode, contactDetails and address do not apply and must not be provided.",
+  "examples": [
+    {
+      "wasteSource": "HOUSEHOLD"
+    }
+  ],
+  "type": "object",
+  "allOf": [
+    { "$ref": "producer-base.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "wasteSource": {
+          "const": "HOUSEHOLD",
+          "description": "Waste originates from a household."
+        }
+      },
+      "required": ["wasteSource"]
+    }
+  ],
+  "propertyNames": {
+    "enum": ["wasteSource"]
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Record undocumented receipt request",
+  "description": "Payload for `POST /receipts`. A consignmentNote is required when any waste item declares hazardous properties; the service checks that, as the rule spans the waste items and the consignment note.",
+  "type": "object",
+  "properties": {
+    "reasonForNoDeliveryId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 5000,
+      "description": "Why this Receipt has no Delivery ID. Required, because this route is for Receipts without one; a Receipt with a Delivery ID is recorded at `POST /deliveries/{deliveryId}/receipt`.",
+      "examples": [
+        "No delivery was recorded prior to receipt; waste received directly from the producer."
+      ]
+    },
+    "receiptDateTime": {
+      "$ref": "../common/receipt-date-time.schema.json",
+      "description": "When the waste was received at the receiver's site."
+    },
+    "carrier": {
+      "$ref": "../common/carrier.schema.json",
+      "description": "The carrier that delivered the waste."
+    },
+    "receiver": {
+      "$ref": "../common/receiver/receiver.schema.json",
+      "description": "The receiver that received the waste."
+    },
+    "wasteItems": {
+      "$ref": "../common/waste-item/waste-items.schema.json",
+      "description": "The items of waste received. At least one is required, and every item needs at least one treatment.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "treatments": {
+            "description": "Required on every waste item of a Receipt: at least one disposal or recovery operation"
+          }
+        },
+        "required": ["treatments"]
+      }
+    },
+    "brokerOrDealer": {
+      "$ref": "../common/broker-or-dealer/broker-or-dealer.schema.json",
+      "description": "Any broker or dealer involved in the Movement."
+    },
+    "supportingReferences": {
+      "$ref": "../common/supporting-references.schema.json",
+      "description": "References that help identify the Receipt, such as a PO or job number."
+    },
+    "consignmentNote": {
+      "$ref": "../common/consignment-note.schema.json",
+      "description": "The hazardous waste consignment note. Required when any waste item declares hazardous properties."
+    }
+  },
+  "required": [
+    "reasonForNoDeliveryId",
+    "receiptDateTime",
+    "carrier",
+    "receiver",
+    "wasteItems"
+  ],
+  "additionalProperties": false
+}

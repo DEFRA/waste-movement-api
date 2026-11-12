@@ -19,6 +19,8 @@ export const mongoDb = {
       server.decorate('server', 'mongoClient', client)
       server.decorate('server', 'db', db)
       server.decorate('request', 'db', () => db, { apply: true })
+      // For a request's own sessions, e.g. a transaction
+      server.decorate('request', 'mongoClient', () => client, { apply: true })
 
       server.events.on('stop', async () => {
         server.logger.info('Closing Mongo client')
