@@ -14,7 +14,9 @@ import { recordReceiptUndocumented } from './routes/record-receipt-undocumented.
 import { validators } from './schemas/validators.js'
 
 const apiVersion = 'beta-3'
-const collectionName = versionedCollections(apiVersion, DATA_REVISION)
+// Names this version's collections, e.g. collectionName('movements') is
+// `beta-3-r1-movements`.
+export const collectionName = versionedCollections(apiVersion, DATA_REVISION)
 
 /**
  * Everything the routes need from this version. Its data access objects are

@@ -16,12 +16,10 @@ import {
   physicalDetails,
   treatment
 } from '../schemas/test-helpers.js'
-import { version } from '../index.js'
-import { createLogger } from '#/common/helpers/logging/logger.js'
-import { versionedCollections } from '#/common/data/versioned-collections.js'
-import { DATA_REVISION } from '../data/revision.js'
+import { collectionName, version } from '../index.js'
 
-const collectionName = versionedCollections('beta-3', DATA_REVISION)
+const { apiVersion } = version
+import { createLogger } from '#/common/helpers/logging/logger.js'
 
 const delivery = version.deliveries
 
@@ -45,10 +43,10 @@ vi.mock('#/common/http/waste-tracking.js', () => ({
   createDeliveryId: vi.fn().mockResolvedValue('25KMT4Z9')
 }))
 
-describe('POST /beta-3/deliveries/{deliveryId}/receipt', () => {
+describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
   let server
   const deliveryId = '25KMT4Z9'
-  const url = `/beta-3/deliveries/${deliveryId}/receipt`
+  const url = `/${apiVersion}/deliveries/${deliveryId}/receipt`
   const traceId = 'trace-id-123'
   const authHeaders = { Authorization: `Basic ${requestBasicAuthTest1}` }
   const tracedHeaders = { 'x-cdp-request-id': traceId }
@@ -251,7 +249,7 @@ describe('POST /beta-3/deliveries/{deliveryId}/receipt', () => {
     expect(statusCode).toEqual(HTTP_STATUS.NOT_FOUND)
     expect(result).toEqual({
       detail: `No delivery exists with delivery ID: ${deliveryId}`,
-      instance: '/beta-3/deliveries/25KMT4Z9/receipt',
+      instance: `/${apiVersion}/deliveries/25KMT4Z9/receipt`,
       title: 'Not Found',
       type: `${expectedTypeBase}not-found`,
       requestId: traceId
@@ -261,7 +259,7 @@ describe('POST /beta-3/deliveries/{deliveryId}/receipt', () => {
   it('returns a 400 when the deliveryId is not in the ID format', async () => {
     const { statusCode, result } = await server.inject({
       method: 'POST',
-      url: '/beta-3/deliveries/NONEXISTENT/receipt',
+      url: `/${apiVersion}/deliveries/NONEXISTENT/receipt`,
       payload: {},
       headers: tracedAuthHeaders
     })
@@ -303,7 +301,7 @@ describe('POST /beta-3/deliveries/{deliveryId}/receipt', () => {
           pointer: '/apiCode'
         }
       ],
-      instance: '/beta-3/deliveries/25KMT4Z9/receipt',
+      instance: `/${apiVersion}/deliveries/25KMT4Z9/receipt`,
       title: 'Bad Request',
       type: `${expectedTypeBase}bad-request`,
       requestId: traceId
@@ -333,7 +331,7 @@ describe('POST /beta-3/deliveries/{deliveryId}/receipt', () => {
           pointer: '/carrier'
         }
       ],
-      instance: '/beta-3/deliveries/25KMT4Z9/receipt',
+      instance: `/${apiVersion}/deliveries/25KMT4Z9/receipt`,
       title: 'Bad Request',
       type: `${expectedTypeBase}bad-request`,
       requestId: traceId
@@ -358,7 +356,7 @@ describe('POST /beta-3/deliveries/{deliveryId}/receipt', () => {
           pointer: '/physicalDetails'
         }
       ],
-      instance: '/beta-3/deliveries/25KMT4Z9/receipt',
+      instance: `/${apiVersion}/deliveries/25KMT4Z9/receipt`,
       title: 'Bad Request',
       type: `${expectedTypeBase}bad-request`,
       requestId: traceId
@@ -389,7 +387,7 @@ describe('POST /beta-3/deliveries/{deliveryId}/receipt', () => {
           pointer: '/treatments'
         }
       ],
-      instance: '/beta-3/deliveries/25KMT4Z9/receipt',
+      instance: `/${apiVersion}/deliveries/25KMT4Z9/receipt`,
       title: 'Bad Request',
       type: `${expectedTypeBase}bad-request`,
       requestId: traceId
@@ -453,7 +451,7 @@ describe('POST /beta-3/deliveries/{deliveryId}/receipt', () => {
           pointer: '/receiver'
         }
       ],
-      instance: '/beta-3/deliveries/25KMT4Z9/receipt',
+      instance: `/${apiVersion}/deliveries/25KMT4Z9/receipt`,
       title: 'Bad Request',
       type: `${expectedTypeBase}bad-request`,
       requestId: traceId
@@ -481,7 +479,7 @@ describe('POST /beta-3/deliveries/{deliveryId}/receipt', () => {
     expect(statusCode).toEqual(HTTP_STATUS.BAD_REQUEST)
     expect(result).toEqual({
       detail: 'the API Code supplied is invalid',
-      instance: '/beta-3/deliveries/25KMT4Z9/receipt',
+      instance: `/${apiVersion}/deliveries/25KMT4Z9/receipt`,
       title: 'Bad Request',
       type: `${expectedTypeBase}bad-request`,
       requestId: traceId
@@ -509,7 +507,7 @@ describe('POST /beta-3/deliveries/{deliveryId}/receipt', () => {
 
     expect(statusCode).toEqual(HTTP_STATUS.INTERNAL_SERVER_ERROR)
     expect(result).toEqual({
-      instance: '/beta-3/deliveries/25KMT4Z9/receipt',
+      instance: `/${apiVersion}/deliveries/25KMT4Z9/receipt`,
       title: 'Internal Server Error',
       type: `${expectedTypeBase}internal-server-error`,
       requestId: traceId

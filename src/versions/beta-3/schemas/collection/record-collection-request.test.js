@@ -13,7 +13,7 @@ const validateAjv = validatorFor(
   'collection/record-collection-request.schema.json'
 )
 
-describe('record-collection-request schema: beta-3', () => {
+describe('record-collection-request schema', () => {
   const brokerOrDealer = { isPresent: true, items: [brokerOrDealerEntry] }
   const isDutyOfCareConfirmed = true
   const validCollection = {

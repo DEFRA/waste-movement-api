@@ -26,15 +26,13 @@ import {
   treatment,
   wasteItem
 } from '../schemas/test-helpers.js'
-import { versionedCollections } from '#/common/data/versioned-collections.js'
-import { DATA_REVISION } from '../data/revision.js'
+import { collectionName, version } from '../index.js'
 
-const collectionName = versionedCollections('beta-3', DATA_REVISION)
+const { apiVersion } = version
 
-describe('beta-3', () => {
+describe(apiVersion, () => {
   let testService
   let wasteTrackingStub
-  const version = 'beta-3'
   const intendedCarriers = [carrier]
   const deliveryDetails = { carrier, deliveryDateTime, deliverySite }
   const intendedReceivers = [receiver]
@@ -69,7 +67,7 @@ describe('beta-3', () => {
   const createMovement = async (overrides = {}) => {
     const { body } = await betaHttpRequest(
       testService.baseUrl,
-      '/beta-3/movements',
+      `/${apiVersion}/movements`,
       {
         method: 'POST',
         body: { ...minimalMovement, ...overrides }
@@ -79,17 +77,17 @@ describe('beta-3', () => {
   }
 
   // Shared error formatting and RFC9457 compliance tests
-  describeBetaEndpointTests(version, () => testService, {
+  describeBetaEndpointTests(apiVersion, () => testService, {
     apiCode1,
     minimalProducer: minimalMovement
   })
 
-  describe('POST /beta-3/movements', () => {
+  describe(`POST /${apiVersion}/movements`, () => {
     it('creates a movement with minimal payload', async () => {
       const producer = { wasteSource: 'HOUSEHOLD' }
       const { status, body, headers } = await betaHttpRequest(
         testService.baseUrl,
-        '/beta-3/movements',
+        `/${apiVersion}/movements`,
         {
           method: 'POST',
           body: {
@@ -129,7 +127,7 @@ describe('beta-3', () => {
       const producer = { wasteSource: 'HOUSEHOLD' }
       const { status, body, headers } = await betaHttpRequest(
         testService.baseUrl,
-        '/beta-3/movements',
+        `/${apiVersion}/movements`,
         {
           method: 'POST',
           body: {
@@ -180,7 +178,7 @@ describe('beta-3', () => {
       }
       const { status, body, headers } = await betaHttpRequest(
         testService.baseUrl,
-        '/beta-3/movements',
+        `/${apiVersion}/movements`,
         {
           method: 'POST',
           body: {
@@ -216,10 +214,10 @@ describe('beta-3', () => {
     })
   })
 
-  it('POST /beta-3/movements/{movementId}/collection creates a collection', async () => {
+  it(`POST /${apiVersion}/movements/{movementId}/collection creates a collection`, async () => {
     const createRes = await betaHttpRequest(
       testService.baseUrl,
-      '/beta-3/movements',
+      `/${apiVersion}/movements`,
       {
         method: 'POST',
         body: { ...minimalMovement }
@@ -229,7 +227,7 @@ describe('beta-3', () => {
 
     const { status, body, headers } = await betaHttpRequest(
       testService.baseUrl,
-      `/beta-3/movements/${movementId}/collection`,
+      `/${apiVersion}/movements/${movementId}/collection`,
       {
         method: 'POST',
         body: {
@@ -260,12 +258,12 @@ describe('beta-3', () => {
     })
   })
 
-  it('POST /beta-3/movements/{movementId}/collection creates a collection with a brokerOrDealer and supportingReferences', async () => {
+  it(`POST /${apiVersion}/movements/{movementId}/collection creates a collection with a brokerOrDealer and supportingReferences`, async () => {
     const movementId = await createMovement()
 
     const { status, body, headers } = await betaHttpRequest(
       testService.baseUrl,
-      `/beta-3/movements/${movementId}/collection`,
+      `/${apiVersion}/movements/${movementId}/collection`,
       {
         method: 'POST',
         body: {
@@ -288,10 +286,10 @@ describe('beta-3', () => {
     expectStandardHeaders(headers)
   })
 
-  it('POST /beta-3/deliveries records a delivery', async () => {
+  it(`POST /${apiVersion}/deliveries records a delivery`, async () => {
     const createRes = await betaHttpRequest(
       testService.baseUrl,
-      '/beta-3/movements',
+      `/${apiVersion}/movements`,
       {
         method: 'POST',
         body: { ...minimalMovement }
@@ -301,7 +299,7 @@ describe('beta-3', () => {
 
     const { status, body, headers } = await betaHttpRequest(
       testService.baseUrl,
-      '/beta-3/deliveries',
+      `/${apiVersion}/deliveries`,
       {
         method: 'POST',
         body: { movementIds: [movementId], ...deliveryDetails }
@@ -335,7 +333,7 @@ describe('beta-3', () => {
     consignmentNote
   }
 
-  it('POST /beta-3/movements stores a hazardous waste item', async () => {
+  it(`POST /${apiVersion}/movements stores a hazardous waste item`, async () => {
     const movementId = await createMovement(hazardousMovement)
 
     const movement = await testService.db
@@ -349,14 +347,14 @@ describe('beta-3', () => {
     expect(movement).not.toHaveProperty('wasteType')
   })
 
-  it('POST /beta-3/deliveries splits hazardous movements into their own deliveries', async () => {
+  it(`POST /${apiVersion}/deliveries splits hazardous movements into their own deliveries`, async () => {
     const nonHazardousId1 = await createMovement()
     const hazardousId = await createMovement(hazardousMovement)
     const nonHazardousId2 = await createMovement()
 
     const { status, body } = await betaHttpRequest(
       testService.baseUrl,
-      '/beta-3/deliveries',
+      `/${apiVersion}/deliveries`,
       {
         method: 'POST',
         body: {
@@ -403,10 +401,10 @@ describe('beta-3', () => {
     )
   })
 
-  it('POST /beta-3/deliveries/{deliveryId}/receipt records a receipt against a delivery', async () => {
+  it(`POST /${apiVersion}/deliveries/{deliveryId}/receipt records a receipt against a delivery`, async () => {
     const createMovementRes = await betaHttpRequest(
       testService.baseUrl,
-      '/beta-3/movements',
+      `/${apiVersion}/movements`,
       {
         method: 'POST',
         body: { ...minimalMovement }
@@ -416,7 +414,7 @@ describe('beta-3', () => {
 
     const createDeliveryRes = await betaHttpRequest(
       testService.baseUrl,
-      '/beta-3/deliveries',
+      `/${apiVersion}/deliveries`,
       {
         method: 'POST',
         body: { movementIds: [movementId], ...deliveryDetails }
@@ -426,7 +424,7 @@ describe('beta-3', () => {
 
     const { status, body, headers } = await betaHttpRequest(
       testService.baseUrl,
-      `/beta-3/deliveries/${deliveryId}/receipt`,
+      `/${apiVersion}/deliveries/${deliveryId}/receipt`,
       {
         method: 'POST',
         body: {
@@ -459,11 +457,11 @@ describe('beta-3', () => {
     })
   })
 
-  it('POST /beta-3/receipts records an undocumented receipt', async () => {
+  it(`POST /${apiVersion}/receipts records an undocumented receipt`, async () => {
     const reasonForNoDeliveryId = 'No prior movement trail'
     const { status, body, headers } = await betaHttpRequest(
       testService.baseUrl,
-      '/beta-3/receipts',
+      `/${apiVersion}/receipts`,
       {
         method: 'POST',
         body: {
@@ -497,12 +495,12 @@ describe('beta-3', () => {
     })
   })
 
-  it('POST /beta-3/movements/{movementId}/collection creates a collection with specialHandlingRequirements', async () => {
+  it(`POST /${apiVersion}/movements/{movementId}/collection creates a collection with specialHandlingRequirements`, async () => {
     const movementId = await createMovement()
 
     const { status, body, headers } = await betaHttpRequest(
       testService.baseUrl,
-      `/beta-3/movements/${movementId}/collection`,
+      `/${apiVersion}/movements/${movementId}/collection`,
       {
         method: 'POST',
         body: {
@@ -524,12 +522,12 @@ describe('beta-3', () => {
     expectStandardHeaders(headers)
   })
 
-  it('POST /beta-3/deliveries records a delivery with supportingReferences', async () => {
+  it(`POST /${apiVersion}/deliveries records a delivery with supportingReferences`, async () => {
     const movementId = await createMovement()
 
     const { status, body, headers } = await betaHttpRequest(
       testService.baseUrl,
-      '/beta-3/deliveries',
+      `/${apiVersion}/deliveries`,
       {
         method: 'POST',
         body: {
@@ -546,11 +544,11 @@ describe('beta-3', () => {
     expectStandardHeaders(headers)
   })
 
-  it('POST /beta-3/deliveries/{deliveryId}/receipt records a receipt with a brokerOrDealer and supportingReferences', async () => {
+  it(`POST /${apiVersion}/deliveries/{deliveryId}/receipt records a receipt with a brokerOrDealer and supportingReferences`, async () => {
     const movementId = await createMovement()
     const createDeliveryRes = await betaHttpRequest(
       testService.baseUrl,
-      '/beta-3/deliveries',
+      `/${apiVersion}/deliveries`,
       {
         method: 'POST',
         body: { movementIds: [movementId], ...deliveryDetails }
@@ -560,7 +558,7 @@ describe('beta-3', () => {
 
     const { status, body, headers } = await betaHttpRequest(
       testService.baseUrl,
-      `/beta-3/deliveries/${deliveryId}/receipt`,
+      `/${apiVersion}/deliveries/${deliveryId}/receipt`,
       {
         method: 'POST',
         body: {
@@ -584,10 +582,10 @@ describe('beta-3', () => {
     expectStandardHeaders(headers)
   })
 
-  it('POST /beta-3/receipts records an undocumented receipt with a brokerOrDealer and supportingReferences', async () => {
+  it(`POST /${apiVersion}/receipts records an undocumented receipt with a brokerOrDealer and supportingReferences`, async () => {
     const { status, body, headers } = await betaHttpRequest(
       testService.baseUrl,
-      '/beta-3/receipts',
+      `/${apiVersion}/receipts`,
       {
         method: 'POST',
         body: {
@@ -611,9 +609,9 @@ describe('beta-3', () => {
     expectStandardHeaders(headers)
   })
 
-  describe('beta-3 specific error cases', () => {
+  describe(`${apiVersion} specific error cases`, () => {
     it('rejects collection creation for non-existent movement', async () => {
-      const endpoint = '/beta-3/movements/25ZZZZZ0/collection'
+      const endpoint = `/${apiVersion}/movements/25ZZZZZ0/collection`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -636,7 +634,7 @@ describe('beta-3', () => {
     // external API, so the backend rejects it in the body.
     it('rejects collection creation with apiCode in the body', async () => {
       const movementId = await createMovement()
-      const endpoint = `/beta-3/movements/${movementId}/collection`
+      const endpoint = `/${apiVersion}/movements/${movementId}/collection`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -659,7 +657,7 @@ describe('beta-3', () => {
 
     it('rejects collection creation without a carrier', async () => {
       const movementId = await createMovement()
-      const endpoint = `/beta-3/movements/${movementId}/collection`
+      const endpoint = `/${apiVersion}/movements/${movementId}/collection`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -684,7 +682,7 @@ describe('beta-3', () => {
     // duty of care.
     it('rejects collection creation without a duty of care confirmation', async () => {
       const movementId = await createMovement()
-      const endpoint = `/beta-3/movements/${movementId}/collection`
+      const endpoint = `/${apiVersion}/movements/${movementId}/collection`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -708,7 +706,7 @@ describe('beta-3', () => {
 
     it('rejects collection creation when a brokerOrDealer is declared with no details', async () => {
       const movementId = await createMovement()
-      const endpoint = `/beta-3/movements/${movementId}/collection`
+      const endpoint = `/${apiVersion}/movements/${movementId}/collection`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -737,7 +735,7 @@ describe('beta-3', () => {
 
     it('rejects collection creation when brokerOrDealer details are given without declaring involvement', async () => {
       const movementId = await createMovement()
-      const endpoint = `/beta-3/movements/${movementId}/collection`
+      const endpoint = `/${apiVersion}/movements/${movementId}/collection`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -766,7 +764,7 @@ describe('beta-3', () => {
 
     it('rejects collection creation when a supportingReference has an unrecognised label', async () => {
       const movementId = await createMovement()
-      const endpoint = `/beta-3/movements/${movementId}/collection`
+      const endpoint = `/${apiVersion}/movements/${movementId}/collection`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -797,7 +795,7 @@ describe('beta-3', () => {
 
     it('rejects delivery recording without a carrier', async () => {
       const movementId = await createMovement()
-      const endpoint = '/beta-3/deliveries'
+      const endpoint = `/${apiVersion}/deliveries`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -819,7 +817,7 @@ describe('beta-3', () => {
     })
 
     it('rejects delivery recording with missing movementIds', async () => {
-      const endpoint = '/beta-3/deliveries'
+      const endpoint = `/${apiVersion}/deliveries`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -835,7 +833,7 @@ describe('beta-3', () => {
     })
 
     it('rejects delivery recording with non-existent movement', async () => {
-      const endpoint = '/beta-3/deliveries'
+      const endpoint = `/${apiVersion}/deliveries`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -853,7 +851,7 @@ describe('beta-3', () => {
     })
 
     it('rejects receipt recording without a carrier', async () => {
-      const endpoint = '/beta-3/receipts'
+      const endpoint = `/${apiVersion}/receipts`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -880,7 +878,7 @@ describe('beta-3', () => {
     })
 
     it('rejects receipt recording without a receiver', async () => {
-      const endpoint = '/beta-3/receipts'
+      const endpoint = `/${apiVersion}/receipts`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -908,7 +906,7 @@ describe('beta-3', () => {
     })
 
     it('rejects receipt recording with a date and time of receipt in the future', async () => {
-      const endpoint = '/beta-3/receipts'
+      const endpoint = `/${apiVersion}/receipts`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -940,7 +938,7 @@ describe('beta-3', () => {
       const movementId = await createMovement()
       const createDeliveryRes = await betaHttpRequest(
         testService.baseUrl,
-        '/beta-3/deliveries',
+        `/${apiVersion}/deliveries`,
         {
           method: 'POST',
           body: { movementIds: [movementId], ...deliveryDetails }
@@ -948,7 +946,7 @@ describe('beta-3', () => {
       )
       const { deliveryId } = createDeliveryRes.body.data.deliveries[0]
 
-      const endpoint = `/beta-3/deliveries/${deliveryId}/receipt`
+      const endpoint = `/${apiVersion}/deliveries/${deliveryId}/receipt`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -980,7 +978,7 @@ describe('beta-3', () => {
       const movementId = await createMovement()
       const createDeliveryRes = await betaHttpRequest(
         testService.baseUrl,
-        '/beta-3/deliveries',
+        `/${apiVersion}/deliveries`,
         {
           method: 'POST',
           body: { movementIds: [movementId], ...deliveryDetails }
@@ -988,7 +986,7 @@ describe('beta-3', () => {
       )
       const { deliveryId } = createDeliveryRes.body.data.deliveries[0]
 
-      const endpoint = `/beta-3/deliveries/${deliveryId}/receipt`
+      const endpoint = `/${apiVersion}/deliveries/${deliveryId}/receipt`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -1016,7 +1014,7 @@ describe('beta-3', () => {
     })
 
     it('rejects receipt recording without waste items', async () => {
-      const endpoint = '/beta-3/receipts'
+      const endpoint = `/${apiVersion}/receipts`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -1047,7 +1045,7 @@ describe('beta-3', () => {
       const movementId = await createMovement()
       const createDeliveryRes = await betaHttpRequest(
         testService.baseUrl,
-        '/beta-3/deliveries',
+        `/${apiVersion}/deliveries`,
         {
           method: 'POST',
           body: { movementIds: [movementId], ...deliveryDetails }
@@ -1055,7 +1053,7 @@ describe('beta-3', () => {
       )
       const { deliveryId } = createDeliveryRes.body.data.deliveries[0]
 
-      const endpoint = `/beta-3/deliveries/${deliveryId}/receipt`
+      const endpoint = `/${apiVersion}/deliveries/${deliveryId}/receipt`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -1081,7 +1079,7 @@ describe('beta-3', () => {
       const movementId = await createMovement()
       const createDeliveryRes = await betaHttpRequest(
         testService.baseUrl,
-        '/beta-3/deliveries',
+        `/${apiVersion}/deliveries`,
         {
           method: 'POST',
           body: { movementIds: [movementId], ...deliveryDetails }
@@ -1089,7 +1087,7 @@ describe('beta-3', () => {
       )
       const { deliveryId } = createDeliveryRes.body.data.deliveries[0]
 
-      const endpoint = `/beta-3/deliveries/${deliveryId}/receipt`
+      const endpoint = `/${apiVersion}/deliveries/${deliveryId}/receipt`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -1123,7 +1121,7 @@ describe('beta-3', () => {
     // apiCode is sent in the x-api-code header and resolved by the
     // external API, so the backend rejects it in the body.
     it('rejects receipt recording with apiCode in the body', async () => {
-      const endpoint = '/beta-3/receipts'
+      const endpoint = `/${apiVersion}/receipts`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -1148,7 +1146,7 @@ describe('beta-3', () => {
     // apiCode is sent in the x-api-code header and resolved by the
     // external API, so the backend rejects it in the body.
     it('rejects apiCode in the movement body', async () => {
-      const endpoint = '/beta-3/movements'
+      const endpoint = `/${apiVersion}/movements`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -1172,7 +1170,7 @@ describe('beta-3', () => {
 
     // Scenario: A Movement isn't created when no intended carrier is declared.
     it('rejects a movement without intended carriers', async () => {
-      const endpoint = '/beta-3/movements'
+      const endpoint = `/${apiVersion}/movements`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -1198,7 +1196,7 @@ describe('beta-3', () => {
     })
 
     it('rejects a movement without intended receivers', async () => {
-      const endpoint = '/beta-3/movements'
+      const endpoint = `/${apiVersion}/movements`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -1227,7 +1225,7 @@ describe('beta-3', () => {
     })
 
     it('rejects a movement with an empty list of intended receivers', async () => {
-      const endpoint = '/beta-3/movements'
+      const endpoint = `/${apiVersion}/movements`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -1254,7 +1252,7 @@ describe('beta-3', () => {
     })
 
     it('rejects a movement without waste items', async () => {
-      const endpoint = '/beta-3/movements'
+      const endpoint = `/${apiVersion}/movements`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -1283,7 +1281,7 @@ describe('beta-3', () => {
     })
 
     it('rejects a movement whose loose waste item declares containers', async () => {
-      const endpoint = '/beta-3/movements'
+      const endpoint = `/${apiVersion}/movements`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -1321,7 +1319,7 @@ describe('beta-3', () => {
     })
 
     it('rejects invalid producer wasteSource', async () => {
-      const endpoint = '/beta-3/movements'
+      const endpoint = `/${apiVersion}/movements`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -1343,7 +1341,7 @@ describe('beta-3', () => {
     })
 
     it('reports a producer of the wrong type once', async () => {
-      const endpoint = '/beta-3/movements'
+      const endpoint = `/${apiVersion}/movements`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -1372,7 +1370,7 @@ describe('beta-3', () => {
     })
 
     it('rejects commercial producer missing organisationName', async () => {
-      const endpoint = '/beta-3/movements'
+      const endpoint = `/${apiVersion}/movements`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -1400,7 +1398,7 @@ describe('beta-3', () => {
     })
 
     it('rejects commercial producer with invalid sicCode format', async () => {
-      const endpoint = '/beta-3/movements'
+      const endpoint = `/${apiVersion}/movements`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -1429,7 +1427,7 @@ describe('beta-3', () => {
     })
 
     it('rejects commercial producer missing both email and phone', async () => {
-      const endpoint = '/beta-3/movements'
+      const endpoint = `/${apiVersion}/movements`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -1457,7 +1455,7 @@ describe('beta-3', () => {
     })
 
     it('rejects commercial producer missing authorisation details', async () => {
-      const endpoint = '/beta-3/movements'
+      const endpoint = `/${apiVersion}/movements`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -1485,7 +1483,7 @@ describe('beta-3', () => {
     })
 
     it('rejects commercial producer with invalid postcode', async () => {
-      const endpoint = '/beta-3/movements'
+      const endpoint = `/${apiVersion}/movements`
       const response = await betaHttpRequest(testService.baseUrl, endpoint, {
         method: 'POST',
         requestId: randomUUID(),
@@ -1518,7 +1516,7 @@ describe('beta-3', () => {
     it('household producer with minimal fields', async () => {
       const { status, body } = await betaHttpRequest(
         testService.baseUrl,
-        '/beta-3/movements',
+        `/${apiVersion}/movements`,
         {
           method: 'POST',
           body: {
@@ -1539,7 +1537,7 @@ describe('beta-3', () => {
     it('municipal producer with full details', async () => {
       const { status, body } = await betaHttpRequest(
         testService.baseUrl,
-        '/beta-3/movements',
+        `/${apiVersion}/movements`,
         {
           method: 'POST',
           body: {
@@ -1567,7 +1565,7 @@ describe('beta-3', () => {
     it('commercial producer with reasonForNoAuthorisationNumber', async () => {
       const { status, body } = await betaHttpRequest(
         testService.baseUrl,
-        '/beta-3/movements',
+        `/${apiVersion}/movements`,
         {
           method: 'POST',
           body: {

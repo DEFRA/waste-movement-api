@@ -101,7 +101,7 @@ describe('registration-number schema', () => {
     )
 
     // The one deliberate difference: Phase 1 doesn't trim registration
-    // numbers, so it rejects surrounding whitespace. The beta-3 pattern has
+    // numbers, so it rejects surrounding whitespace. This version's pattern has
     // always accepted it (see broker-or-dealer.test.js).
     test('differs from utils only by accepting surrounding whitespace', () => {
       expect(isValidInPhase1(' CBDL999 ')).toBe(false)

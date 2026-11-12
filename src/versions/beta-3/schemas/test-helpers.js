@@ -1,4 +1,4 @@
-// Shared fixtures for the beta-3 schema tests
+// Shared fixtures for this version's schema tests
 import { validators } from './validators.js'
 
 const { getErrors, validate } = validators

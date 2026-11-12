@@ -1,12 +1,9 @@
 import { MongoClient } from 'mongodb'
-import { versionedCollections } from '#/common/data/versioned-collections.js'
-import { DATA_REVISION } from './revision.js'
+import { collectionName as versionCollectionName, version } from '../index.js'
 import { movementData } from './movements.js'
 
-const collectionName = versionedCollections(
-  'beta-3',
-  DATA_REVISION
-)('movements')
+const collectionName = versionCollectionName('movements')
+
 const {
   createIndexes,
   getMovementRecord,
@@ -27,7 +24,7 @@ describe('movement data', () => {
 
   beforeAll(async () => {
     client = await MongoClient.connect(process.env.MONGO_URI)
-    db = client.db('beta-3-data-test')
+    db = client.db(`${version.apiVersion}-data-test`)
     await db.dropDatabase()
     await createIndexes(db)
 

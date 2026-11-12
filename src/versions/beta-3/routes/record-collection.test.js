@@ -17,6 +17,8 @@ import {
 } from '../schemas/test-helpers.js'
 import { version } from '../index.js'
 
+const { apiVersion } = version
+
 const movementService = version.movements
 
 vi.mock('#/common/http/waste-tracking.js', () => ({
@@ -24,9 +26,8 @@ vi.mock('#/common/http/waste-tracking.js', () => ({
   createDeliveryId: vi.fn().mockResolvedValue('26S8EYDJ')
 }))
 
-describe('collection Route Tests version: beta-3', () => {
+describe(`collection Route Tests version: ${apiVersion}`, () => {
   let server
-  const endpointVersion = 'beta-3'
   const errorMessage = 'Database connection failed'
   const traceId = 'created-trace-id-123'
   const isDutyOfCareConfirmed = true
@@ -59,7 +60,7 @@ describe('collection Route Tests version: beta-3', () => {
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements/${goodMovementId}/collection`,
+      url: `/${apiVersion}/movements/${goodMovementId}/collection`,
       payload: goodPayload,
       headers: {
         Authorization: `Basic ${requestBasicAuthTest1}`,
@@ -86,7 +87,7 @@ describe('collection Route Tests version: beta-3', () => {
     const getMovementRecordSpy = vi
       .spyOn(movementService, 'getMovementRecord')
       .mockResolvedValue({ id: goodMovementId })
-    const url = `/${endpointVersion}/movements/${goodMovementId}/collection`
+    const url = `/${apiVersion}/movements/${goodMovementId}/collection`
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -114,7 +115,7 @@ describe('collection Route Tests version: beta-3', () => {
       brokerOrDealer: { isPresent: true }
     }
     const getMovementRecordSpy = vi.spyOn(movementService, 'getMovementRecord')
-    const url = `/${endpointVersion}/movements/${goodMovementId}/collection`
+    const url = `/${apiVersion}/movements/${goodMovementId}/collection`
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -146,7 +147,7 @@ describe('collection Route Tests version: beta-3', () => {
       brokerOrDealer: { isPresent: false, items: [brokerOrDealerEntry] }
     }
     const getMovementRecordSpy = vi.spyOn(movementService, 'getMovementRecord')
-    const url = `/${endpointVersion}/movements/${goodMovementId}/collection`
+    const url = `/${apiVersion}/movements/${goodMovementId}/collection`
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -180,7 +181,7 @@ describe('collection Route Tests version: beta-3', () => {
     const getMovementRecordSpy = vi
       .spyOn(movementService, 'getMovementRecord')
       .mockResolvedValue({ id: goodMovementId })
-    const url = `/${endpointVersion}/movements/${goodMovementId}/collection`
+    const url = `/${apiVersion}/movements/${goodMovementId}/collection`
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -208,7 +209,7 @@ describe('collection Route Tests version: beta-3', () => {
       supportingReferences: [{ ...supportingReference, label: 'Not A Label' }]
     }
     const getMovementRecordSpy = vi.spyOn(movementService, 'getMovementRecord')
-    const url = `/${endpointVersion}/movements/${goodMovementId}/collection`
+    const url = `/${apiVersion}/movements/${goodMovementId}/collection`
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -243,7 +244,7 @@ describe('collection Route Tests version: beta-3', () => {
     const getMovementRecordSpy = vi
       .spyOn(movementService, 'getMovementRecord')
       .mockResolvedValue({ id: goodMovementId })
-    const url = `/${endpointVersion}/movements/${goodMovementId}/collection`
+    const url = `/${apiVersion}/movements/${goodMovementId}/collection`
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -268,7 +269,7 @@ describe('collection Route Tests version: beta-3', () => {
       specialHandlingRequirements: 'A'.repeat(longText + 1)
     }
     const getMovementRecordSpy = vi.spyOn(movementService, 'getMovementRecord')
-    const url = `/${endpointVersion}/movements/${goodMovementId}/collection`
+    const url = `/${apiVersion}/movements/${goodMovementId}/collection`
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -294,7 +295,7 @@ describe('collection Route Tests version: beta-3', () => {
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements/${goodMovementId}/collection`,
+      url: `/${apiVersion}/movements/${goodMovementId}/collection`,
       payload: goodPayload,
       headers: {
         'x-cdp-request-id': traceId,
@@ -305,7 +306,7 @@ describe('collection Route Tests version: beta-3', () => {
     expect(statusCode).toEqual(HTTP_STATUS.BAD_REQUEST)
     expect(result).toEqual({
       detail: 'the API Code supplied is invalid',
-      instance: '/beta-3/movements/25HRA0B2/collection',
+      instance: `/${apiVersion}/movements/25HRA0B2/collection`,
       title: 'Bad Request',
       type: `${expectedTypeBase}bad-request`,
       requestId: traceId
@@ -320,7 +321,7 @@ describe('collection Route Tests version: beta-3', () => {
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements/${goodMovementId}/collection`,
+      url: `/${apiVersion}/movements/${goodMovementId}/collection`,
       payload: goodPayload,
       headers: {
         Authorization: `Basic ${requestBasicAuthTest1}`,
@@ -331,7 +332,7 @@ describe('collection Route Tests version: beta-3', () => {
     expect(statusCode).toEqual(HTTP_STATUS.NOT_FOUND)
     expect(result).toEqual({
       detail: 'movementId not found',
-      instance: '/beta-3/movements/25HRA0B2/collection',
+      instance: `/${apiVersion}/movements/25HRA0B2/collection`,
       title: 'Not Found',
       type: `${expectedTypeBase}not-found`
     })
@@ -348,7 +349,7 @@ describe('collection Route Tests version: beta-3', () => {
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements/${goodMovementId}/collection`,
+      url: `/${apiVersion}/movements/${goodMovementId}/collection`,
       payload: invalidPayload,
       headers: {
         'x-cdp-request-id': traceId,
@@ -367,7 +368,7 @@ describe('collection Route Tests version: beta-3', () => {
           pointer: '/carrier'
         }
       ],
-      instance: `/beta-3/movements/${goodMovementId}/collection`,
+      instance: `/${apiVersion}/movements/${goodMovementId}/collection`,
       title: 'Bad Request',
       type: `${expectedTypeBase}bad-request`,
       requestId: traceId
@@ -381,7 +382,7 @@ describe('collection Route Tests version: beta-3', () => {
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements/${badMovementId}/collection`,
+      url: `/${apiVersion}/movements/${badMovementId}/collection`,
       payload: goodPayload,
       headers: {
         'x-cdp-request-id': traceId,
@@ -415,7 +416,7 @@ describe('collection Route Tests version: beta-3', () => {
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements/${goodMovementId}/collection`,
+      url: `/${apiVersion}/movements/${goodMovementId}/collection`,
       payload: invalidPayload,
       headers: {
         'x-cdp-request-id': traceId,
@@ -434,7 +435,7 @@ describe('collection Route Tests version: beta-3', () => {
           pointer: '/apiCode'
         }
       ],
-      instance: '/beta-3/movements/25HRA0B2/collection',
+      instance: `/${apiVersion}/movements/25HRA0B2/collection`,
       title: 'Bad Request',
       type: `${expectedTypeBase}bad-request`,
       requestId: traceId
@@ -447,7 +448,7 @@ describe('collection Route Tests version: beta-3', () => {
   it('returns an error when the duty of care confirmation is missing and does not create a collection', async () => {
     const invalidPayload = { carrier, collectionDateTime, collectionSite }
     const getMovementRecordSpy = vi.spyOn(movementService, 'getMovementRecord')
-    const url = `/${endpointVersion}/movements/${goodMovementId}/collection`
+    const url = `/${apiVersion}/movements/${goodMovementId}/collection`
     const { statusCode, result } = await server.inject({
       method: 'POST',
       url,
@@ -484,7 +485,7 @@ describe('collection Route Tests version: beta-3', () => {
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements/${goodMovementId}/collection`,
+      url: `/${apiVersion}/movements/${goodMovementId}/collection`,
       payload: goodPayload,
       headers: {
         'x-cdp-request-id': traceId,
@@ -495,7 +496,7 @@ describe('collection Route Tests version: beta-3', () => {
 
     expect(statusCode).toEqual(HTTP_STATUS.INTERNAL_SERVER_ERROR)
     expect(result).toEqual({
-      instance: '/beta-3/movements/25HRA0B2/collection',
+      instance: `/${apiVersion}/movements/25HRA0B2/collection`,
       title: 'Internal Server Error',
       type: `${expectedTypeBase}internal-server-error`,
       requestId: traceId
@@ -509,7 +510,7 @@ describe('collection Route Tests version: beta-3', () => {
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements/${goodMovementId}/collection`,
+      url: `/${apiVersion}/movements/${goodMovementId}/collection`,
       payload: goodPayload,
       headers: {
         'x-cdp-request-id': traceId
@@ -519,7 +520,7 @@ describe('collection Route Tests version: beta-3', () => {
     expect(statusCode).toEqual(HTTP_STATUS.UNAUTHORIZED)
     expect(result).toEqual({
       detail: 'Missing authentication',
-      instance: '/beta-3/movements/25HRA0B2/collection',
+      instance: `/${apiVersion}/movements/25HRA0B2/collection`,
       title: 'Unauthorized',
       type: `${expectedTypeBase}unauthorized`,
       requestId: traceId
@@ -535,7 +536,7 @@ describe('collection Route Tests version: beta-3', () => {
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements/${goodMovementId}/collection`,
+      url: `/${apiVersion}/movements/${goodMovementId}/collection`,
       payload: goodPayload,
       headers: {
         'x-cdp-request-id': traceId,
@@ -546,7 +547,7 @@ describe('collection Route Tests version: beta-3', () => {
 
     expect(statusCode).toEqual(HTTP_STATUS.INTERNAL_SERVER_ERROR)
     expect(result).toEqual({
-      instance: `/${endpointVersion}/movements/${goodMovementId}/collection`,
+      instance: `/${apiVersion}/movements/${goodMovementId}/collection`,
       title: 'Internal Server Error',
       type: `${expectedTypeBase}internal-server-error`,
       requestId: traceId
@@ -556,7 +557,7 @@ describe('collection Route Tests version: beta-3', () => {
   const submitCollection = (payload) =>
     server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements/${goodMovementId}/collection`,
+      url: `/${apiVersion}/movements/${goodMovementId}/collection`,
       payload,
       headers: {
         'x-cdp-request-id': traceId,

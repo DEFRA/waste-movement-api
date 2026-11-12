@@ -1,12 +1,9 @@
 import { MongoClient } from 'mongodb'
-import { versionedCollections } from '#/common/data/versioned-collections.js'
-import { DATA_REVISION } from './revision.js'
+import { collectionName as versionCollectionName, version } from '../index.js'
 import { deliveryData } from './deliveries.js'
 
-const collectionName = versionedCollections(
-  'beta-3',
-  DATA_REVISION
-)('deliveries')
+const collectionName = versionCollectionName('deliveries')
+
 const {
   createIndexes,
   findDeliveryMovementIds,
@@ -29,7 +26,7 @@ describe('delivery data', () => {
     // The shared in-memory MongoDB is a replica set, because
     // createDeliveryRecords writes in a transaction.
     client = await MongoClient.connect(process.env.MONGO_URI)
-    db = client.db('beta-3-data-test')
+    db = client.db(`${version.apiVersion}-data-test`)
     await db.dropDatabase()
     await db.createCollection(collectionName)
     await createIndexes(db)

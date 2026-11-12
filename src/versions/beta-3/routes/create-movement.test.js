@@ -24,11 +24,9 @@ import {
   wasteItem
 } from '../schemas/test-helpers.js'
 import { createMovementId } from '#/common/http/waste-tracking.js'
-import { version } from '../index.js'
-import { versionedCollections } from '#/common/data/versioned-collections.js'
-import { DATA_REVISION } from '../data/revision.js'
+import { collectionName, version } from '../index.js'
 
-const collectionName = versionedCollections('beta-3', DATA_REVISION)
+const { apiVersion } = version
 
 const movementCreate = version.movements
 
@@ -58,9 +56,8 @@ vi.mock('#/common/http/waste-tracking.js', () => ({
   createDeliveryId: vi.fn().mockResolvedValue('26S8EYDJ')
 }))
 
-describe('movement Route Tests version: beta-3', () => {
+describe(`movement Route Tests version: ${apiVersion}`, () => {
   let server
-  const endpointVersion = 'beta-3'
   const errorMessage = 'Database connection failed'
   const traceId = 'created-trace-id-123'
   const producer = {
@@ -127,7 +124,7 @@ describe('movement Route Tests version: beta-3', () => {
 
     const { statusCode, result, headers } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements`,
+      url: `/${apiVersion}/movements`,
       payload: goodPayload,
       headers: {
         'x-cdp-request-id': traceId,
@@ -168,7 +165,7 @@ describe('movement Route Tests version: beta-3', () => {
 
     const { statusCode, result, headers } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements`,
+      url: `/${apiVersion}/movements`,
       payload,
       headers: {
         'x-cdp-request-id': traceId,
@@ -193,7 +190,7 @@ describe('movement Route Tests version: beta-3', () => {
 
     const { statusCode, result, headers } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements`,
+      url: `/${apiVersion}/movements`,
       payload: goodPayload,
       headers: {
         'x-cdp-request-id': traceId,
@@ -204,7 +201,7 @@ describe('movement Route Tests version: beta-3', () => {
 
     expect(statusCode).toEqual(HTTP_STATUS.INTERNAL_SERVER_ERROR)
     expect(result).toEqual({
-      instance: '/beta-3/movements',
+      instance: `/${apiVersion}/movements`,
       title: 'Internal Server Error',
       type: `${expectedTypeBase}internal-server-error`,
       requestId: traceId
@@ -224,7 +221,7 @@ describe('movement Route Tests version: beta-3', () => {
 
     const { statusCode } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements`,
+      url: `/${apiVersion}/movements`,
       payload: goodPayload,
       headers: {
         'x-cdp-request-id': traceId,
@@ -266,7 +263,7 @@ describe('movement Route Tests version: beta-3', () => {
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements`,
+      url: `/${apiVersion}/movements`,
       payload,
       headers: {
         'x-cdp-request-id': traceId,
@@ -300,7 +297,7 @@ describe('movement Route Tests version: beta-3', () => {
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements`,
+      url: `/${apiVersion}/movements`,
       payload: invalidPayload,
       headers: {
         'x-cdp-request-id': traceId,
@@ -345,7 +342,7 @@ describe('movement Route Tests version: beta-3', () => {
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements`,
+      url: `/${apiVersion}/movements`,
       payload: invalidPayload,
       headers: {
         'x-cdp-request-id': traceId,
@@ -382,7 +379,7 @@ describe('movement Route Tests version: beta-3', () => {
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements`,
+      url: `/${apiVersion}/movements`,
       payload: invalidPayload,
       headers: {
         'x-cdp-request-id': traceId,
@@ -401,7 +398,7 @@ describe('movement Route Tests version: beta-3', () => {
           pointer: '/apiCode'
         }
       ],
-      instance: '/beta-3/movements',
+      instance: `/${apiVersion}/movements`,
       title: 'Bad Request',
       type: `${expectedTypeBase}bad-request`,
       requestId: traceId
@@ -425,7 +422,7 @@ describe('movement Route Tests version: beta-3', () => {
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements`,
+      url: `/${apiVersion}/movements`,
       payload: invalidPayload,
       headers: {
         'x-cdp-request-id': traceId,
@@ -444,7 +441,7 @@ describe('movement Route Tests version: beta-3', () => {
           pointer: '/producer'
         }
       ],
-      instance: '/beta-3/movements',
+      instance: `/${apiVersion}/movements`,
       title: 'Bad Request',
       type: `${expectedTypeBase}bad-request`,
       requestId: traceId
@@ -469,7 +466,7 @@ describe('movement Route Tests version: beta-3', () => {
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements`,
+      url: `/${apiVersion}/movements`,
       payload: invalidPayload,
       headers: {
         'x-cdp-request-id': traceId,
@@ -488,7 +485,7 @@ describe('movement Route Tests version: beta-3', () => {
           pointer: '/intendedCarriers'
         }
       ],
-      instance: '/beta-3/movements',
+      instance: `/${apiVersion}/movements`,
       title: 'Bad Request',
       type: `${expectedTypeBase}bad-request`,
       requestId: traceId
@@ -512,7 +509,7 @@ describe('movement Route Tests version: beta-3', () => {
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements`,
+      url: `/${apiVersion}/movements`,
       payload: invalidPayload,
       headers: {
         'x-cdp-request-id': traceId,
@@ -531,7 +528,7 @@ describe('movement Route Tests version: beta-3', () => {
           pointer: '/intendedReceivers'
         }
       ],
-      instance: '/beta-3/movements',
+      instance: `/${apiVersion}/movements`,
       title: 'Bad Request',
       type: `${expectedTypeBase}bad-request`,
       requestId: traceId
@@ -555,7 +552,7 @@ describe('movement Route Tests version: beta-3', () => {
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements`,
+      url: `/${apiVersion}/movements`,
       payload: invalidPayload,
       headers: {
         'x-cdp-request-id': traceId,
@@ -574,7 +571,7 @@ describe('movement Route Tests version: beta-3', () => {
           pointer: '/wasteItems'
         }
       ],
-      instance: '/beta-3/movements',
+      instance: `/${apiVersion}/movements`,
       title: 'Bad Request',
       type: `${expectedTypeBase}bad-request`,
       requestId: traceId
@@ -590,7 +587,7 @@ describe('movement Route Tests version: beta-3', () => {
 
     const { statusCode } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements`,
+      url: `/${apiVersion}/movements`,
       payload: {
         ...goodPayload,
         wasteItems: [wasteItem, hazardousWasteItem],
@@ -643,7 +640,7 @@ describe('movement Route Tests version: beta-3', () => {
 
       const { statusCode, result } = await server.inject({
         method: 'POST',
-        url: `/${endpointVersion}/movements`,
+        url: `/${apiVersion}/movements`,
         payload: goodPayload,
         headers
       })
@@ -664,7 +661,7 @@ describe('movement Route Tests version: beta-3', () => {
 
       const { statusCode } = await server.inject({
         method: 'POST',
-        url: `/${endpointVersion}/movements`,
+        url: `/${apiVersion}/movements`,
         payload: goodPayload,
         headers
       })
@@ -687,7 +684,7 @@ describe('movement Route Tests version: beta-3', () => {
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements`,
+      url: `/${apiVersion}/movements`,
       payload: { ...goodPayload, wasteType: 'HAZARDOUS' },
       headers: {
         'x-cdp-request-id': traceId,
@@ -731,7 +728,7 @@ describe('movement Route Tests version: beta-3', () => {
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements`,
+      url: `/${apiVersion}/movements`,
       payload: invalidPayload,
       headers: {
         'x-cdp-request-id': traceId,
@@ -770,7 +767,7 @@ describe('movement Route Tests version: beta-3', () => {
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements`,
+      url: `/${apiVersion}/movements`,
       payload: invalidPayload,
       headers: {
         'x-cdp-request-id': traceId,
@@ -805,7 +802,7 @@ describe('movement Route Tests version: beta-3', () => {
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements`,
+      url: `/${apiVersion}/movements`,
       payload: invalidPayload,
       headers: {
         'x-cdp-request-id': traceId,
@@ -815,7 +812,7 @@ describe('movement Route Tests version: beta-3', () => {
 
     expect(result).toEqual({
       detail: 'the API Code supplied is invalid',
-      instance: '/beta-3/movements',
+      instance: `/${apiVersion}/movements`,
       title: 'Bad Request',
       type: `${expectedTypeBase}bad-request`,
       requestId: traceId
@@ -832,7 +829,7 @@ describe('movement Route Tests version: beta-3', () => {
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements`,
+      url: `/${apiVersion}/movements`,
       payload: goodPayload,
       headers: {
         'x-cdp-request-id': traceId
@@ -841,7 +838,7 @@ describe('movement Route Tests version: beta-3', () => {
 
     expect(result).toEqual({
       detail: 'Missing authentication',
-      instance: `/${endpointVersion}/movements`,
+      instance: `/${apiVersion}/movements`,
       title: 'Unauthorized',
       type: `${expectedTypeBase}unauthorized`,
       requestId: traceId
@@ -858,7 +855,7 @@ describe('movement Route Tests version: beta-3', () => {
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements`,
+      url: `/${apiVersion}/movements`,
       payload: goodPayload,
       headers: {
         'x-cdp-request-id': traceId,
@@ -869,7 +866,7 @@ describe('movement Route Tests version: beta-3', () => {
 
     expect(statusCode).toEqual(HTTP_STATUS.INTERNAL_SERVER_ERROR)
     expect(result).toEqual({
-      instance: `/${endpointVersion}/movements`,
+      instance: `/${apiVersion}/movements`,
       title: 'Internal Server Error',
       type: `${expectedTypeBase}internal-server-error`,
       requestId: traceId
@@ -914,7 +911,7 @@ describe('movement Route Tests version: beta-3', () => {
 
         const { statusCode, result } = await server.inject({
           method: 'POST',
-          url: `/${endpointVersion}/movements`,
+          url: `/${apiVersion}/movements`,
           payload,
           headers: {
             'x-cdp-request-id': traceId,
@@ -992,7 +989,7 @@ describe('movement Route Tests version: beta-3', () => {
     ])('when $description', async ({ payload, expectedError }) => {
       const { statusCode, result } = await server.inject({
         method: 'POST',
-        url: `/${endpointVersion}/movements`,
+        url: `/${apiVersion}/movements`,
         payload,
         headers: {
           'x-cdp-request-id': traceId,
@@ -1010,7 +1007,7 @@ describe('movement Route Tests version: beta-3', () => {
   const submit = (payload) =>
     server.inject({
       method: 'POST',
-      url: `/${endpointVersion}/movements`,
+      url: `/${apiVersion}/movements`,
       payload,
       headers: {
         'x-cdp-request-id': traceId,

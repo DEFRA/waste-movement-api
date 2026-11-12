@@ -117,8 +117,8 @@ src/
 
 1. Copy the latest version's folder: `cp -r src/versions/beta-3 src/versions/beta-4`.
 2. In the copy, set `apiVersion` in `index.js`, rename the plugin export,
-   and set `info.version` and `servers[].url` in `schemas/openapi.json`. Search the folder for the
-   old version name to catch the rest (test names, collection names in tests).
+   and set `info.version` and `servers[].url` in `schemas/openapi.json`. The tests take the version
+   name and collection names from `index.js`, so only comments still mention the old name.
 3. Set `DATA_REVISION` in `data/revision.js` back to `1`: the new version starts on its own
    collections.
 4. Register it in [src/plugins/router.js](src/plugins/router.js):

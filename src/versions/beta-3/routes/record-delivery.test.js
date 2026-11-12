@@ -18,11 +18,9 @@ import {
   wasteItem
 } from '../schemas/test-helpers.js'
 import { createDeliveryId } from '#/common/http/waste-tracking.js'
-import { version } from '../index.js'
-import { versionedCollections } from '#/common/data/versioned-collections.js'
-import { DATA_REVISION } from '../data/revision.js'
+import { collectionName, version } from '../index.js'
 
-const collectionName = versionedCollections('beta-3', DATA_REVISION)
+const { apiVersion } = version
 
 const delivery = version.deliveries
 
@@ -45,11 +43,11 @@ vi.mock('#/common/http/waste-tracking.js', () => ({
   createDeliveryId: vi.fn().mockResolvedValue('25KMT4Z9')
 }))
 
-describe('POST /beta-3/deliveries', () => {
+describe(`POST /${apiVersion}/deliveries`, () => {
   let server
   const movementId1 = '25HRA0B1'
   const movementId2 = '25HRA0B2'
-  const url = '/beta-3/deliveries'
+  const url = `/${apiVersion}/deliveries`
   const deliveryDetails = { carrier, deliveryDateTime, deliverySite }
   const traceId = 'trace-id-123'
   const authHeaders = { Authorization: `Basic ${requestBasicAuthTest1}` }
@@ -212,7 +210,7 @@ describe('POST /beta-3/deliveries', () => {
           pointer: '/deliverySite'
         }
       ],
-      instance: '/beta-3/deliveries',
+      instance: `/${apiVersion}/deliveries`,
       title: 'Bad Request',
       type: `${expectedTypeBase}bad-request`,
       requestId: traceId
@@ -237,7 +235,7 @@ describe('POST /beta-3/deliveries', () => {
           pointer: '/carrier'
         }
       ],
-      instance: '/beta-3/deliveries',
+      instance: `/${apiVersion}/deliveries`,
       title: 'Bad Request',
       type: `${expectedTypeBase}bad-request`,
       requestId: traceId
@@ -455,7 +453,7 @@ describe('POST /beta-3/deliveries', () => {
           pointer: '/apiCode'
         }
       ],
-      instance: '/beta-3/deliveries',
+      instance: `/${apiVersion}/deliveries`,
       title: 'Bad Request',
       type: `${expectedTypeBase}bad-request`,
       requestId: traceId
@@ -473,7 +471,7 @@ describe('POST /beta-3/deliveries', () => {
     expect(statusCode).toEqual(HTTP_STATUS.BAD_REQUEST)
     expect(result).toEqual({
       detail: 'the API Code supplied is invalid',
-      instance: '/beta-3/deliveries',
+      instance: `/${apiVersion}/deliveries`,
       title: 'Bad Request',
       type: `${expectedTypeBase}bad-request`,
       requestId: traceId
@@ -498,7 +496,7 @@ describe('POST /beta-3/deliveries', () => {
     expect(statusCode).toEqual(HTTP_STATUS.BAD_REQUEST)
     expect(result).toEqual({
       detail: 'Movement ID(s) not recognised: 25HRA0B2',
-      instance: '/beta-3/deliveries',
+      instance: `/${apiVersion}/deliveries`,
       title: 'Bad Request',
       type: `${expectedTypeBase}bad-request`,
       requestId: traceId
@@ -523,7 +521,7 @@ describe('POST /beta-3/deliveries', () => {
 
     expect(statusCode).toEqual(HTTP_STATUS.INTERNAL_SERVER_ERROR)
     expect(result).toEqual({
-      instance: '/beta-3/deliveries',
+      instance: `/${apiVersion}/deliveries`,
       title: 'Internal Server Error',
       type: `${expectedTypeBase}internal-server-error`,
       requestId: traceId
@@ -541,7 +539,7 @@ describe('POST /beta-3/deliveries', () => {
     expect(statusCode).toEqual(HTTP_STATUS.UNAUTHORIZED)
     expect(result).toEqual({
       detail: 'Missing authentication',
-      instance: '/beta-3/deliveries',
+      instance: `/${apiVersion}/deliveries`,
       title: 'Unauthorized',
       type: `${expectedTypeBase}unauthorized`,
       requestId: traceId
