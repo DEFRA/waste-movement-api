@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Treatment",
+  "description": "A disposal or recovery operation applied to the waste, and the weight of waste it applies to. Both are required.",
+  "examples": [
+    {
+      "disposalOrRecoveryCode": "R3",
+      "weight": {
+        "amount": 250.5,
+        "unit": "KILOGRAMS",
+        "isEstimate": false
+      }
+    }
+  ],
+  "type": "object",
+  "properties": {
+    "disposalOrRecoveryCode": {
+      "type": "string",
+      "enum": [
+        "R1",
+        "R2",
+        "R3",
+        "R4",
+        "R5",
+        "R6",
+        "R7",
+        "R8",
+        "R9",
+        "R10",
+        "R11",
+        "R12",
+        "R13",
+        "D1",
+        "D2",
+        "D3",
+        "D4",
+        "D5",
+        "D6",
+        "D7",
+        "D8",
+        "D9",
+        "D10",
+        "D11",
+        "D12",
+        "D13",
+        "D14",
+        "D15"
+      ],
+      "description": "The recovery (R1–R13) or disposal (D1–D15) operation code. Case-sensitive."
+    },
+    "weight": {
+      "$ref": "weight.schema.json",
+      "description": "The weight of waste this treatment applies to."
+    }
+  },
+  "required": ["disposalOrRecoveryCode", "weight"],
+  "additionalProperties": false
+}

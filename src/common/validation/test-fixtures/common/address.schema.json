@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "An address",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["postcode"],
+  "properties": {
+    "postcode": {
+      "description": "A UK postcode",
+      "type": "string",
+      "pattern": "^[A-Z]{1,2}\\d[A-Z\\d]? ?\\d[A-Z]{2}$"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Registration number",
+  "description": "Waste carrier, broker or dealer registration number, in a valid UK home-nation format (England and NRW CBDU/CBDL, SEPA EAS/R, WCR/SCO/SEA/SNO/SWE and PCT, NI ROC UT/LT). Case-insensitive, and allows surrounding whitespace.",
+  "examples": ["EAS/R/1234567", "CBDU123456"],
+  "type": "string",
+  "pattern": "^\\s*(?:[Cc][Bb][Dd][LlUu]\\d{3,}|[Ee][Aa][Ss]/[Rr]/\\d{6,7}|[Ww][Cc][Rr]/[Rr]/\\d{7}|[Ww][Cc][Rr]/[A-Za-z0-9]{6}|(?:[Ss][Cc][Oo]|[Ss][Ee][Aa]|[Ss][Nn][Oo]|[Ss][Ww][Ee])/\\d{6}(?:/[Cc][Bb])?|[Ss][Cc][Oo]/\\d{6}/[Bb]|[Pp][Cc][Tt]-[A-Za-z]-\\d{3,7}|[Rr][Oo][Cc]\\W*[UuLl][Tt]\\W*\\d{1,5})\\s*$"
+}

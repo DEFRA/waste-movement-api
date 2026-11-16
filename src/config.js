@@ -6,6 +6,10 @@ convict.addFormats(convictFormatWithValidator)
 const isProduction = process.env.NODE_ENV === 'production'
 const isTest = process.env.NODE_ENV === 'test'
 
+// Also the default database name, and the user this service calls other
+// services as
+const serviceName = 'waste-movement-api'
+
 export const config = convict({
   serviceVersion: {
     doc: 'The service version, this variable is injected into your docker container in CDP environments',
@@ -29,7 +33,7 @@ export const config = convict({
   serviceName: {
     doc: 'Api Service Name',
     format: String,
-    default: 'waste-movement-api'
+    default: serviceName
   },
   cdpEnvironment: {
     doc: 'The CDP environment the app is running in. With the addition of "local" for local development',
@@ -83,7 +87,7 @@ export const config = convict({
     databaseName: {
       doc: 'database for mongodb',
       format: String,
-      default: 'waste-movement-api',
+      default: serviceName,
       env: 'MONGO_DATABASE'
     },
     mongoOptions: {
@@ -123,7 +127,45 @@ export const config = convict({
       default: 'x-cdp-request-id',
       env: 'TRACING_HEADER'
     }
+  },
+  problemDetails: {
+    typeBase: {
+      doc: 'Base URI used to build RFC 9457 problem type URIs, pointing at the API problem documentation',
+      format: String,
+      default:
+        'https://defra.github.io/digital-waste-tracking-api-site/preview/problems/',
+      env: 'PROBLEM_DETAILS_TYPE_BASE'
+    }
+  },
+  wasteTrackingUrl: {
+    doc: 'Base URL of waste-tracking-id-backend, which mints movement and delivery IDs. Defaults to the one in the same CDP environment',
+    format: String,
+    nullable: true,
+    default: null,
+    env: 'WASTE_TRACKING_URL'
+  },
+  serviceAuth: {
+    username: {
+      doc: 'Username this service uses to authenticate with internal backend services',
+      format: String,
+      default: serviceName,
+      env: 'SERVICE_AUTH_USERNAME_WASTE_MOVEMENT_API'
+    },
+    password: {
+      doc: 'Password this service uses to authenticate with internal backend services',
+      format: String,
+      sensitive: true,
+      default: '',
+      env: 'SERVICE_AUTH_PASSWORD_WASTE_MOVEMENT_API'
+    }
   }
 })
+
+if (config.get('wasteTrackingUrl') === null) {
+  config.set(
+    'wasteTrackingUrl',
+    `https://waste-tracking-id-backend.${config.get('cdpEnvironment')}.cdp-int.defra.cloud`
+  )
+}
 
 config.validate({ allowed: 'strict' })

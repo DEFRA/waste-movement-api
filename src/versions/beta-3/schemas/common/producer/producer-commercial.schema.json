@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Producer (Commercial)",
+  "description": "Producer fields specific to commercial waste. organisationName, sicCode, address and contactDetails are required. Exactly one of authorisationNumber or reasonForNoAuthorisationNumber must be provided.",
+  "examples": [
+    {
+      "wasteSource": "COMMERCIAL",
+      "organisationName": "ACME Waste Producers Ltd",
+      "authorisationNumber": "EAS/P/123456",
+      "sicCode": "38110",
+      "address": {
+        "fullAddress": "10 Industrial Way, Test City",
+        "postcode": "TE1 2PQ"
+      },
+      "contactDetails": {
+        "emailAddress": "producer@example.com",
+        "phoneNumber": "01234567890"
+      }
+    }
+  ],
+  "type": "object",
+  "allOf": [
+    { "$ref": "producer-base.schema.json" },
+    {
+      "type": "object",
+      "if": {
+        "properties": { "authorisationNumber": {} },
+        "required": ["authorisationNumber"]
+      },
+      "then": {
+        "properties": {
+          "reasonForNoAuthorisationNumber": {
+            "not": {},
+            "description": "Not allowed when 'authorisationNumber' is provided"
+          }
+        }
+      },
+      "else": {
+        "properties": { "reasonForNoAuthorisationNumber": {} },
+        "required": ["reasonForNoAuthorisationNumber"],
+        "description": "Required when 'authorisationNumber' is not provided"
+      },
+      "properties": {
+        "wasteSource": {
+          "const": "COMMERCIAL",
+          "description": "Waste originates from a commercial source."
+        },
+        "organisationName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "description": "Producer organisation name."
+        },
+        "authorisationNumber": {
+          "$ref": "../authorisation-number.schema.json",
+          "description": "Producer environmental permit or exemption number, in a valid UK format. Exactly one of 'authorisationNumber' or 'reasonForNoAuthorisationNumber' is required."
+        },
+        "reasonForNoAuthorisationNumber": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 5000,
+          "description": "Why there is no authorisation number. Exactly one of 'authorisationNumber' or 'reasonForNoAuthorisationNumber' is required."
+        },
+        "sicCode": {
+          "type": "string",
+          "pattern": "^\\d{5}$",
+          "description": "Five-digit Standard Industrial Classification code."
+        },
+        "contactDetails": {
+          "$ref": "../contact-details.schema.json",
+          "description": "How to contact the producer."
+        },
+        "address": {
+          "$ref": "../address.schema.json",
+          "description": "The producer's address."
+        }
+      },
+      "required": [
+        "wasteSource",
+        "organisationName",
+        "sicCode",
+        "address",
+        "contactDetails"
+      ]
+    }
+  ],
+  "propertyNames": {
+    "enum": [
+      "wasteSource",
+      "organisationName",
+      "authorisationNumber",
+      "reasonForNoAuthorisationNumber",
+      "sicCode",
+      "contactDetails",
+      "address"
+    ]
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Record collection request",
+  "description": "Payload for `POST /movements/{movementId}/collection`.",
+  "type": "object",
+  "properties": {
+    "carrier": {
+      "$ref": "../common/carrier.schema.json",
+      "description": "The carrier that collected the waste."
+    },
+    "collectionDateTime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "The actual time the waste was collected, as an ISO 8601 date-time. The planned time was given when the Movement was created."
+    },
+    "collectionSite": {
+      "$ref": "../common/collection-site.schema.json",
+      "description": "The place the waste was collected from."
+    },
+    "brokerOrDealer": {
+      "$ref": "../common/broker-or-dealer/broker-or-dealer.schema.json",
+      "description": "Any broker or dealer involved in the Collection."
+    },
+    "isDutyOfCareConfirmed": {
+      "type": "boolean",
+      "description": "Carrier confirms they have inspected the waste, that it is as described, and that they are content to transport it."
+    },
+    "supportingReferences": {
+      "$ref": "../common/supporting-references.schema.json",
+      "description": "References that help identify the Collection, such as a PO or job number."
+    },
+    "specialHandlingRequirements": {
+      "$ref": "../common/special-handling-requirements.schema.json",
+      "description": "Handling instructions for the waste. Leave out when there are none."
+    }
+  },
+  "required": [
+    "carrier",
+    "isDutyOfCareConfirmed",
+    "collectionDateTime",
+    "collectionSite"
+  ],
+  "additionalProperties": false
+}

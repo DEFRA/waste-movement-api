@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Contact details",
+  "description": "Contact details for a party. At least one of emailAddress or phoneNumber must be provided.",
+  "examples": [
+    {
+      "emailAddress": "producer@example.com",
+      "phoneNumber": "01234567890"
+    },
+    {
+      "emailAddress": "producer@example.com"
+    }
+  ],
+  "type": "object",
+  "properties": {
+    "emailAddress": {
+      "type": "string",
+      "format": "email",
+      "maxLength": 254,
+      "description": "Contact email address."
+    },
+    "phoneNumber": {
+      "type": "string",
+      "pattern": "^\\s*(?=(?:\\D*\\d){7,15}\\D*$)\\+?[0-9()\\-\\s]+$",
+      "description": "Contact phone number, in a valid format."
+    }
+  },
+  "if": {
+    "properties": { "emailAddress": {} },
+    "required": ["emailAddress"]
+  },
+  "else": {
+    "properties": { "phoneNumber": {} },
+    "required": ["phoneNumber"],
+    "description": "Required when 'emailAddress' is not provided"
+  },
+  "additionalProperties": false
+}

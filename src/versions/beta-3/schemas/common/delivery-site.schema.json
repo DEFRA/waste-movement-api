@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Delivery site",
+  "description": "The place the waste was delivered to. organisationName and address are required; rpsNumbers is optional.",
+  "examples": [
+    {
+      "organisationName": "Hazardous Waste Delivery Site",
+      "address": {
+        "fullAddress": "3 Receiver Road, Test City",
+        "postcode": "TE1 3RC"
+      },
+      "rpsNumbers": [123, 456]
+    }
+  ],
+  "type": "object",
+  "properties": {
+    "organisationName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "description": "Name of the delivery site."
+    },
+    "address": {
+      "$ref": "address.schema.json",
+      "description": "The address of the delivery site."
+    },
+    "rpsNumbers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "A regulatory position statement number, a whole number greater than 0."
+      },
+      "description": "The regulatory position statements the waste was delivered under. Leave out when there are none."
+    }
+  },
+  "required": ["organisationName", "address"],
+  "additionalProperties": false
+}

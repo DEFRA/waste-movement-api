@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Broker or dealer",
+  "description": "A single broker or dealer who arranged the Movement. organisationName and contactDetails are required, and exactly one of registrationNumber or reasonForNoRegistrationNumber must be provided. address is optional.",
+  "examples": [
+    {
+      "organisationName": "Broker Demo Ltd",
+      "registrationNumber": "CBDU654321",
+      "contactDetails": {
+        "emailAddress": "broker@example.com",
+        "phoneNumber": "01112223333"
+      },
+      "address": {
+        "fullAddress": "2 Broker Yard, Test City",
+        "postcode": "TE1 1ST"
+      }
+    },
+    {
+      "organisationName": "Broker Demo Ltd",
+      "reasonForNoRegistrationNumber": "ONE_OFF",
+      "contactDetails": {
+        "emailAddress": "broker@example.com"
+      }
+    }
+  ],
+  "type": "object",
+  "if": {
+    "properties": { "registrationNumber": {} },
+    "required": ["registrationNumber"]
+  },
+  "then": {
+    "properties": {
+      "reasonForNoRegistrationNumber": {
+        "not": {},
+        "description": "Not allowed when 'registrationNumber' is provided"
+      }
+    }
+  },
+  "else": {
+    "properties": { "reasonForNoRegistrationNumber": {} },
+    "required": ["reasonForNoRegistrationNumber"],
+    "description": "Required when 'registrationNumber' is not provided"
+  },
+  "properties": {
+    "organisationName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "description": "Name of the broker or dealer organisation who arranged this Movement."
+    },
+    "registrationNumber": {
+      "$ref": "../registration-number.schema.json",
+      "description": "Waste carrier, broker or dealer registration number, in a valid UK home-nation format (England and NRW CBDU/CBDL, SEPA EAS/R, WCR/SCO/SEA/SNO/SWE and PCT, NI ROC UT/LT). Exactly one of 'registrationNumber' or 'reasonForNoRegistrationNumber' is required."
+    },
+    "reasonForNoRegistrationNumber": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 5000,
+      "description": "Why there is no registration number. Exactly one of 'registrationNumber' or 'reasonForNoRegistrationNumber' is required."
+    },
+    "contactDetails": {
+      "$ref": "../contact-details.schema.json",
+      "description": "How to contact the broker or dealer."
+    },
+    "address": {
+      "$ref": "../address.schema.json",
+      "description": "The broker or dealer's address."
+    }
+  },
+  "required": ["organisationName", "contactDetails"],
+  "additionalProperties": false
+}

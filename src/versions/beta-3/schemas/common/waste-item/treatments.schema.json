@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Treatments",
+  "description": "The disposal or recovery operations applied to the waste. Optional; when provided, at least one is required.",
+  "examples": [
+    [
+      {
+        "disposalOrRecoveryCode": "R3",
+        "weight": { "amount": 250.5, "unit": "KILOGRAMS", "isEstimate": false }
+      }
+    ]
+  ],
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "$ref": "treatment.schema.json"
+  }
+}

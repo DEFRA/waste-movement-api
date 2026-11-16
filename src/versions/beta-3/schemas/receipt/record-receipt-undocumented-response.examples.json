@@ -1,0 +1,13 @@
+{
+  "withReason": {
+    "summary": "Receipt with no prior Delivery, with the reason why, of waste containing POPs",
+    "value": {
+      "data": {
+        "deliveryId": "25KMT4Z9"
+      },
+      "validation": {
+        "warnings": []
+      }
+    }
+  }
+}

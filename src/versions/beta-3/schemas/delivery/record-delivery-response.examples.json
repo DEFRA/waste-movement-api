@@ -1,0 +1,41 @@
+{
+  "twoMovements": {
+    "summary": "Two Movements delivered together",
+    "value": {
+      "data": {
+        "deliveries": [
+          {
+            "deliveryId": "25KMT4Z9",
+            "movementIds": ["25HRA0B2", "25HRA0B3"],
+            "wasteType": "NON_HAZARDOUS"
+          }
+        ]
+      },
+      "validation": {
+        "warnings": []
+      }
+    }
+  },
+  "mixedWasteTypes": {
+    "summary": "Two non-hazardous Movements and one hazardous Movement delivered together",
+    "value": {
+      "data": {
+        "deliveries": [
+          {
+            "deliveryId": "25KMT4Z9",
+            "movementIds": ["25HRA0B2", "25HRA0B3"],
+            "wasteType": "NON_HAZARDOUS"
+          },
+          {
+            "deliveryId": "25HRZ9X7",
+            "movementIds": ["25HRZ9X7"],
+            "wasteType": "HAZARDOUS"
+          }
+        ]
+      },
+      "validation": {
+        "warnings": []
+      }
+    }
+  }
+}

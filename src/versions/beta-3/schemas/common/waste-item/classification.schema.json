@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Waste item classification",
+  "description": "What a waste item is: a free-text description, its EWC codes, whether it contains persistent organic pollutants (POPs), and whether it has hazardous properties. All four are required. Whether the waste is hazardous comes from its hazardous properties declaration, not its EWC codes.",
+  "examples": [
+    {
+      "wasteDescription": "Mixed municipal waste",
+      "ewcCodes": ["200301"],
+      "pops": {
+        "isPresent": false
+      },
+      "hazardous": {
+        "isPresent": false
+      }
+    },
+    {
+      "wasteDescription": "Fluorescent tubes",
+      "ewcCodes": ["200121"],
+      "pops": {
+        "isPresent": true,
+        "componentsSource": "GUIDANCE",
+        "components": [
+          {
+            "code": "PFOS",
+            "threshold": "LESS_THAN"
+          }
+        ]
+      },
+      "hazardous": {
+        "isPresent": true,
+        "codes": ["HP_6", "HP_14"],
+        "componentsSource": "PROVIDED_WITH_WASTE",
+        "isComponentsNotApplicable": false,
+        "components": [
+          {
+            "name": "Mercury",
+            "threshold": "EQUAL_TO"
+          }
+        ]
+      }
+    }
+  ],
+  "type": "object",
+  "properties": {
+    "wasteDescription": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 5000,
+      "description": "A free-text description of the waste. An empty string is treated as not provided."
+    },
+    "ewcCodes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^\\d{6}$",
+        "description": "A European Waste Catalogue (EWC) code: six digits, with no spaces. Only the format is checked here; the service also checks the code is one of those served by `GET /reference-data/ewc-codes`, which is too long a list to inline, and reports an unrecognised code as an InvalidValue error."
+      },
+      "minItems": 1,
+      "maxItems": 5,
+      "description": "The EWC codes that describe the waste: at least one, and up to five to allow for dual and mirror codes. Each must be six digits and a code from `GET /reference-data/ewc-codes`; the service checks the second."
+    },
+    "pops": {
+      "$ref": "pops.schema.json",
+      "description": "Whether the waste item contains persistent organic pollutants, and if so which. Required, even when there are none."
+    },
+    "hazardous": {
+      "$ref": "hazardous.schema.json",
+      "description": "Whether the waste item has hazardous properties, and if so which. Required, even when there are none. A Movement is hazardous when any of its waste items declares hazardous properties."
+    }
+  },
+  "required": ["wasteDescription", "ewcCodes", "pops", "hazardous"],
+  "additionalProperties": false
+}

@@ -1,0 +1,204 @@
+{
+  "commercial": {
+    "summary": "Commercial producer of hazardous waste, with consignment note, broker or dealer, supporting references and special handling",
+    "value": {
+      "producer": {
+        "wasteSource": "COMMERCIAL",
+        "organisationName": "ACME Waste Producers Ltd",
+        "authorisationNumber": "EAS/P/123456",
+        "sicCode": "38110",
+        "address": {
+          "fullAddress": "10 Industrial Way, Test City",
+          "postcode": "TE1 2PQ"
+        },
+        "contactDetails": {
+          "emailAddress": "producer@example.com",
+          "phoneNumber": "01234567890"
+        }
+      },
+      "collectionDateTime": "2026-01-15T09:30:00Z",
+      "collectionSite": {
+        "address": {
+          "fullAddress": "10 Industrial Way, Test City",
+          "postcode": "TE1 2PQ"
+        },
+        "contactDetails": {
+          "emailAddress": "site@example.com",
+          "phoneNumber": "01234567890"
+        }
+      },
+      "intendedReceivers": [
+        {
+          "siteName": "Receiver Site Ltd",
+          "authorisationNumber": "EAS/P/123456",
+          "receiptAddress": {
+            "fullAddress": "3 Receiver Road, Test City",
+            "postcode": "TE1 3RC"
+          },
+          "contactDetails": {
+            "emailAddress": "receiver@example.com",
+            "phoneNumber": "01234567890"
+          }
+        }
+      ],
+      "wasteItems": [
+        {
+          "classification": {
+            "wasteDescription": "Fluorescent tubes",
+            "ewcCodes": ["200121"],
+            "pops": {
+              "isPresent": false
+            },
+            "hazardous": {
+              "isPresent": true,
+              "codes": ["HP_6", "HP_14"],
+              "componentsSource": "OWN_TESTING",
+              "isComponentsNotApplicable": false,
+              "components": [
+                {
+                  "name": "Mercury",
+                  "unit": "MG_PER_KG",
+                  "amount": 120
+                },
+                {
+                  "name": "Lead compounds",
+                  "threshold": "GREATER_THAN"
+                }
+              ]
+            }
+          },
+          "physicalDetails": {
+            "form": "SOLID",
+            "containerType": "DRU",
+            "containerCount": 4,
+            "totalWeight": {
+              "amount": 250.5,
+              "unit": "KILOGRAMS",
+              "isEstimate": false
+            }
+          }
+        }
+      ],
+      "brokerOrDealer": {
+        "isPresent": true,
+        "items": [
+          {
+            "organisationName": "Broker Demo Ltd",
+            "registrationNumber": "CBDU654321",
+            "contactDetails": {
+              "emailAddress": "broker@example.com",
+              "phoneNumber": "01112223333"
+            },
+            "address": {
+              "fullAddress": "2 Broker Yard, Test City",
+              "postcode": "TE1 1ST"
+            }
+          }
+        ]
+      },
+      "supportingReferences": [
+        {
+          "label": "PO_NUMBER",
+          "reference": "PO-123456"
+        },
+        {
+          "label": "JOB_NUMBER",
+          "reference": "CARRIER-JOB-001"
+        }
+      ],
+      "specialHandlingRequirements": "Handle with care and keep upright.",
+      "intendedCarriers": [
+        {
+          "organisationName": "Carrier Demo Ltd",
+          "registrationNumber": "CBDU123456",
+          "meansOfTransport": "ROAD",
+          "vehicleRegistration": "AB12 CDE",
+          "contactDetails": {
+            "emailAddress": "carrier@example.com",
+            "phoneNumber": "01234567890"
+          },
+          "address": {
+            "fullAddress": "4 Carrier Lane, Test City",
+            "postcode": "TE1 4CR"
+          }
+        }
+      ],
+      "consignmentNote": {
+        "code": "CJTILE/A0001"
+      }
+    }
+  },
+  "household": {
+    "summary": "Household producer, minimal",
+    "value": {
+      "producer": {
+        "wasteSource": "HOUSEHOLD"
+      },
+      "collectionDateTime": "2026-01-15T09:30:00Z",
+      "collectionSite": {
+        "address": {
+          "fullAddress": "10 Industrial Way, Test City",
+          "postcode": "TE1 2PQ"
+        },
+        "contactDetails": {
+          "emailAddress": "site@example.com",
+          "phoneNumber": "01234567890"
+        }
+      },
+      "intendedCarriers": [
+        {
+          "organisationName": "Carrier Demo Ltd",
+          "registrationNumber": "CBDU123456",
+          "meansOfTransport": "ROAD",
+          "vehicleRegistration": "AB12 CDE",
+          "contactDetails": {
+            "emailAddress": "carrier@example.com",
+            "phoneNumber": "01234567890"
+          },
+          "address": {
+            "fullAddress": "4 Carrier Lane, Test City",
+            "postcode": "TE1 4CR"
+          }
+        }
+      ],
+      "intendedReceivers": [
+        {
+          "siteName": "Receiver Site Ltd",
+          "authorisationNumber": "EAS/P/123456",
+          "receiptAddress": {
+            "fullAddress": "3 Receiver Road, Test City",
+            "postcode": "TE1 3RC"
+          },
+          "contactDetails": {
+            "emailAddress": "receiver@example.com",
+            "phoneNumber": "01234567890"
+          }
+        }
+      ],
+      "wasteItems": [
+        {
+          "classification": {
+            "wasteDescription": "Mixed municipal waste",
+            "ewcCodes": ["200301"],
+            "pops": {
+              "isPresent": false
+            },
+            "hazardous": {
+              "isPresent": false
+            }
+          },
+          "physicalDetails": {
+            "form": "MIXED",
+            "containerType": "LOO",
+            "containerCount": 0,
+            "totalWeight": {
+              "amount": 2,
+              "unit": "TONNES",
+              "isEstimate": true
+            }
+          }
+        }
+      ]
+    }
+  }
+}

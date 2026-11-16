@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Supporting references",
+  "description": "References for the record, each a 'reference' with a 'label' saying what kind it is. When no label fits, 'label' is 'OTHER' and 'otherLabel' says what kind it is.",
+  "examples": [
+    [
+      {
+        "label": "PO_NUMBER",
+        "reference": "PO-123456"
+      },
+      {
+        "label": "JOB_NUMBER",
+        "reference": "CARRIER-JOB-001"
+      },
+      {
+        "label": "OTHER",
+        "otherLabel": "Skip hire number",
+        "reference": "SKIP-4471"
+      }
+    ]
+  ],
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "type": "object",
+    "if": {
+      "properties": {
+        "label": {
+          "const": "OTHER"
+        }
+      },
+      "required": ["label"]
+    },
+    "then": {
+      "properties": {
+        "otherLabel": {}
+      },
+      "required": ["otherLabel"],
+      "description": "Required when 'label' is 'OTHER'"
+    },
+    "else": {
+      "properties": {
+        "otherLabel": {
+          "not": {},
+          "description": "Not allowed unless 'label' is 'OTHER'"
+        }
+      }
+    },
+    "properties": {
+      "reference": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 255,
+        "description": "Reference value — must be supplied together with its label."
+      },
+      "label": {
+        "type": "string",
+        "enum": [
+          "WEIGHBRIDGE_NUMBER",
+          "PO_NUMBER",
+          "JOB_NUMBER",
+          "INVOICE_NUMBER",
+          "WASTE_TICKET_NUMBER",
+          "OTHER"
+        ],
+        "description": "Label identifying the reference type."
+      },
+      "otherLabel": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 255,
+        "description": "What kind of reference it is. Required when label is OTHER; forbidden otherwise."
+      }
+    },
+    "required": ["reference", "label"],
+    "additionalProperties": false
+  }
+}

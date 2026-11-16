@@ -1,0 +1,1 @@
+{ "a": { "$ref": "#/defs/c~1d~0e" }, "defs": { "c/d~e": { "type": "string" } } }

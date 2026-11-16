@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Record delivery response",
+  "description": "Response returned when a Delivery is recorded.",
+  "type": "object",
+  "required": ["data", "validation"],
+  "properties": {
+    "data": {
+      "type": "object",
+      "description": "The Deliveries recorded by the request.",
+      "required": ["deliveries"],
+      "properties": {
+        "deliveries": {
+          "type": "array",
+          "items": {
+            "$ref": "delivery-item.schema.json"
+          },
+          "description": "One Delivery covering all non-hazardous Movements, plus one Delivery per hazardous Movement whose Delivery ID is its Movement ID."
+        }
+      },
+      "additionalProperties": false
+    },
+    "validation": {
+      "$ref": "../common/validation.schema.json",
+      "description": "Data-quality feedback on the request."
+    }
+  },
+  "additionalProperties": false
+}

@@ -17,6 +17,22 @@ describe('#mongoDb', () => {
       expect(server.mongoClient).toBeInstanceOf(MongoClient)
     })
 
+    test('Requests should have the db and client', async () => {
+      server.route({
+        method: 'GET',
+        path: '/decorations',
+        options: { auth: false },
+        handler: (request) => ({
+          db: request.db === server.db,
+          mongoClient: request.mongoClient === server.mongoClient
+        })
+      })
+
+      const { result } = await server.inject('/decorations')
+
+      expect(result).toEqual({ db: true, mongoClient: true })
+    })
+
     test('MongoDb should have expected database name', () => {
       expect(server.db.databaseName).toBe('waste-movement-api')
     })
