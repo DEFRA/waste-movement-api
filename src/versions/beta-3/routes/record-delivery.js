@@ -6,22 +6,22 @@ import { backOff } from 'exponential-backoff'
 import { createDeliveryId } from '#/common/http/waste-tracking.js'
 import { getOrganisationId } from '#/common/organisation.js'
 import { handleBetaRouteError } from '#/common/route-errors.js'
-import { isHazardous } from '../checks/waste-reference-data-checks.js'
 import { WASTE_TYPE } from '../checks/waste-type.js'
+import { toResponse } from '../data/mappers/delivery.js'
 
 /**
  * Groups the submitted movements into deliveries: one minted Delivery for all
  * the non-hazardous movements, then one Delivery per hazardous movement whose
  * Delivery ID is its own Movement ID. A movement is hazardous when any of its
- * waste items declares hazardous properties.
+ * waste items declares hazardous properties, worked out when it was stored.
  *
  * @param {string[]} movementIds - deduplicated, in submission order
- * @param {Map<string, { wasteItems?: { classification: object }[] }>} movementsById
+ * @param {Map<string, { isHazardous: boolean }>} movementsById
  * @returns {Promise<{ deliveryId: string, movementIds: string[], wasteType: string }[]>}
  */
 const splitIntoDeliveries = async (movementIds, movementsById) => {
   const isHazardousMovement = (movementId) =>
-    isHazardous(movementsById.get(movementId))
+    movementsById.get(movementId).isHazardous
   const hazardousIds = movementIds.filter(isHazardousMovement)
   const nonHazardousIds = movementIds.filter((id) => !isHazardousMovement(id))
 
@@ -93,7 +93,8 @@ export const recordDelivery = (version) => ({
           deliveries.createDeliveryRecords(
             request.db,
             request.mongoClient,
-            split.map((delivery) => ({ ...delivery, orgId }))
+            { orgId, traceId, payload: request.payload },
+            split
           ),
         backoffOptions(logger)
       )
@@ -109,10 +110,7 @@ export const recordDelivery = (version) => ({
       )
 
       return h
-        .response({
-          data: { deliveries: recordedDeliveries },
-          validation: { warnings: [] }
-        })
+        .response(toResponse(recordedDeliveries))
         .code(HTTP_STATUS.CREATED)
         .header('x-request-id', traceId)
         .message('Successfully recorded a delivery')

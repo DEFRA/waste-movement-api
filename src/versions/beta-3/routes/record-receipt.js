@@ -5,6 +5,7 @@ import { notFound } from '@hapi/boom'
 import { getOrganisationId } from '#/common/organisation.js'
 import { handleBetaRouteError } from '#/common/route-errors.js'
 import { withPayloadChecks } from '#/common/validation/payload-checks.js'
+import { toResponse } from '../data/mappers/receipt.js'
 import {
   emptyIsNotProvided,
   notInFuture
@@ -43,7 +44,7 @@ export const recordReceipt = (version) => ({
 
     try {
       const traceId = getTraceId() || randomUUID()
-      getOrganisationId(request)
+      const orgId = getOrganisationId(request)
 
       const movementIds = await version.deliveries.findDeliveryMovementIds(
         request.db,
@@ -57,6 +58,13 @@ export const recordReceipt = (version) => ({
         return notFound(message)
       }
 
+      const receipt = await version.receipts.createReceiptRecord(request.db, {
+        deliveryId,
+        orgId,
+        traceId,
+        payload: request.payload
+      })
+
       version.logger.info(
         { deliveryId },
         `Successfully recorded receipt for delivery ${deliveryId}`
@@ -67,7 +75,7 @@ export const recordReceipt = (version) => ({
           : [{ deliveryId }]
 
       return h
-        .response({ data: { deliveryId }, validation: { warnings: [] } })
+        .response(toResponse(receipt))
         .code(HTTP_STATUS.CREATED)
         .header('x-request-id', traceId)
         .message('Successfully recorded a receipt')

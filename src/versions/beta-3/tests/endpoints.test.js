@@ -24,6 +24,7 @@ import {
   treatment,
   wasteItem
 } from '../schemas/test-helpers.js'
+import { fromPayload } from '#/common/data/payload.js'
 import { collectionName, version } from '../index.js'
 
 const { apiVersion } = version
@@ -100,15 +101,16 @@ describe(apiVersion, () => {
       const { movementId } = body.data
       const movement = await service.db
         .collection(collectionName('movements'))
-        .findOne({ movementId })
+        .findOne({ _id: movementId })
 
       expect(movement).toMatchObject({
-        _id: expect.any(ObjectId),
-        movementId,
+        _id: movementId,
         orgId: forwardedOrganisationId,
-        wasteItems,
-        createdAt: expect.any(String)
+        revision: 1,
+        createdAt: expect.any(Date),
+        isHazardous: false
       })
+      expect(fromPayload(movement.payload).wasteItems).toEqual(wasteItems)
     })
 
     test('creates a movement with producer payload', async ({
@@ -139,14 +141,14 @@ describe(apiVersion, () => {
       const { movementId } = body.data
       const movement = await service.db
         .collection(collectionName('movements'))
-        .findOne({ movementId })
+        .findOne({ _id: movementId })
 
       expect(movement).toMatchObject({
-        _id: expect.any(ObjectId),
-        movementId,
+        _id: movementId,
         orgId: forwardedOrganisationId,
-        createdAt: expect.any(String)
+        createdAt: expect.any(Date)
       })
+      expect(fromPayload(movement.payload).producer).toEqual(producer)
     })
 
     test('creates a movement with commercial producer', async ({
@@ -189,14 +191,14 @@ describe(apiVersion, () => {
       const { movementId } = body.data
       const movement = await service.db
         .collection(collectionName('movements'))
-        .findOne({ movementId })
+        .findOne({ _id: movementId })
 
       expect(movement).toMatchObject({
-        _id: expect.any(ObjectId),
-        movementId,
+        _id: movementId,
         orgId: forwardedOrganisationId,
-        createdAt: expect.any(String)
+        createdAt: expect.any(Date)
       })
+      expect(fromPayload(movement.payload).producer).toEqual(producer)
     })
   })
 
@@ -231,14 +233,22 @@ describe(apiVersion, () => {
     })
     expectStandardHeaders(headers)
 
-    const movement = await service.db
-      .collection(collectionName('movements'))
+    const collection = await service.db
+      .collection(collectionName('collections'))
       .findOne({ movementId })
 
-    expect(movement).toMatchObject({
+    expect(collection).toMatchObject({
+      _id: expect.any(ObjectId),
       movementId,
       orgId: forwardedOrganisationId,
-      createdAt: expect.any(String)
+      revision: 1,
+      createdAt: expect.any(Date)
+    })
+    expect(fromPayload(collection.payload)).toEqual({
+      carrier,
+      collectionDateTime,
+      collectionSite,
+      isDutyOfCareConfirmed
     })
   })
 
@@ -302,7 +312,7 @@ describe(apiVersion, () => {
       deliveryId,
       orgId: forwardedOrganisationId,
       movementIds: [movementId],
-      createdAt: expect.any(String)
+      createdAt: expect.any(Date)
     })
   })
 
@@ -321,12 +331,12 @@ describe(apiVersion, () => {
 
     const movement = await service.db
       .collection(collectionName('movements'))
-      .findOne({ movementId })
+      .findOne({ _id: movementId })
 
-    expect(movement).toMatchObject({
-      movementId,
-      wasteItems: [hazardousWasteItem]
-    })
+    expect(movement).toMatchObject({ _id: movementId, isHazardous: true })
+    expect(fromPayload(movement.payload).wasteItems).toEqual([
+      hazardousWasteItem
+    ])
     expect(movement).not.toHaveProperty('wasteType')
   })
 
@@ -430,7 +440,7 @@ describe(apiVersion, () => {
       deliveryId,
       orgId: forwardedOrganisationId,
       movementIds: [movementId],
-      createdAt: expect.any(String)
+      createdAt: expect.any(Date)
     })
   })
 
@@ -467,7 +477,7 @@ describe(apiVersion, () => {
       _id: expect.any(ObjectId),
       deliveryId,
       orgId: forwardedOrganisationId,
-      createdAt: expect.any(String)
+      createdAt: expect.any(Date)
     })
   })
 

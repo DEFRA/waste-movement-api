@@ -17,10 +17,10 @@ the delivery groupings. Collection and receipt payloads are validated and then t
 
 There are two different "revisions", so this proposal gives them different names:
 
-| Term | Meaning | Where |
-|---|---|---|
-| **Data generation** (`DATA_GENERATION`, today's `DATA_REVISION`) | The version of a whole API version's set of collections. Bumped on a breaking change. | Collection names: `beta-3-g2-movements` |
-| **Document revision** (`revision`) | The version of one document. +1 on every write. | A field on each document; used as the ETag |
+| Term                                                             | Meaning                                                                               | Where                                      |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------ |
+| **Data generation** (`DATA_GENERATION`, today's `DATA_REVISION`) | The version of a whole API version's set of collections. Bumped on a breaking change. | Collection names: `beta-3-g2-movements`    |
+| **Document revision** (`revision`)                               | The version of one document. +1 on every write.                                       | A field on each document; used as the ETag |
 
 We propose renaming `DATA_REVISION` → `DATA_GENERATION` (and `-r<N>-` → `-g<N>-` in collection names) so
 the two can't be confused.
@@ -75,6 +75,7 @@ Each document holds two kinds of data:
   need. They're worked out from the payload when the document is written.
 
 What this gives us:
+
 - A response always reflects exactly what the client sent.
 - The business fields can stay small and change freely.
 - If they ever need rebuilding, they can be worked out again from the payload.
@@ -114,9 +115,9 @@ src/versions/beta-3/data/schemas/movement/
 One data generation covers **all** of an API version's collections, so they always change together and the
 data stays consistent.
 
-| Change | What happens |
-|---|---|
-| Add an optional field | Nothing. The validator is updated at the next boot. |
+| Change                                                        | What happens                                                                            |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Add an optional field                                         | Nothing. The validator is updated at the next boot.                                     |
 | Remove or rename a field, add a required field, change a type | **Breaking.** Bump `DATA_GENERATION`, and the service starts on new, empty collections. |
 
 **Beta data can be thrown away**, so reset stays the default. A migration is optional: because every

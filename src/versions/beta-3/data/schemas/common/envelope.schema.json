@@ -1,0 +1,32 @@
+{
+  "title": "Envelope",
+  "description": "The fields every stored document carries, whatever its entity. Not a collection's schema itself: each entity's schema refers to these fields one by one.",
+  "bsonType": "object",
+  "additionalProperties": false,
+  "properties": {
+    "orgId": {
+      "bsonType": "string",
+      "description": "The ID of the organisation that submitted the request."
+    },
+    "revision": {
+      "bsonType": "int",
+      "description": "The document's revision: 1 when it's created and +1 on every write, so it can serve as its ETag."
+    },
+    "createdAt": {
+      "bsonType": "date",
+      "description": "When the document was created."
+    },
+    "updatedAt": {
+      "bsonType": "date",
+      "description": "When the document was last written; its createdAt until it's updated."
+    },
+    "traceId": {
+      "bsonType": "string",
+      "description": "The trace ID of the request that last wrote the document, for finding it in the logs."
+    },
+    "payload": {
+      "bsonType": "binData",
+      "description": "The original request body as UTF-8 JSON, stored as sent and never queried or edited. API responses are built from it, and the other fields can be worked out from it again."
+    }
+  }
+}

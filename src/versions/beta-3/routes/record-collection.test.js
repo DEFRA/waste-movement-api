@@ -3,7 +3,10 @@ import { apiCode1 } from '#test/data/api-codes.js'
 import { requestBasicAuthTest1 } from '#test/data/basic-auth.js'
 import { test as routeTest } from '#test/helpers/route-fixtures.js'
 import { breakNextResponse } from '#test/helpers/break-next-response.js'
-import { organisationHeaders } from '#test/data/organisation-headers.js'
+import {
+  forwardedOrganisationId,
+  organisationHeaders
+} from '#test/data/organisation-headers.js'
 import {
   brokerOrDealerEntry,
   carrier,
@@ -12,7 +15,9 @@ import {
   supportingReference,
   longText
 } from '../schemas/test-helpers.js'
-import { version } from '../index.js'
+import { fromPayload } from '#/common/data/payload.js'
+import { collectionName, version } from '../index.js'
+import { storeMovements } from '../data/test-helpers.js'
 
 const { apiVersion } = version
 
@@ -85,6 +90,31 @@ const test = routeTest.extend({
 })
 
 describe(`collection Route Tests version: ${apiVersion}`, () => {
+  test('stores the collection against its movement, with the request as sent', async ({
+    server,
+    submitCollection
+  }) => {
+    await server.db.collection(collectionName('movements')).deleteMany({})
+    await server.db.collection(collectionName('collections')).deleteMany({})
+    await storeMovements(server.db, [goodMovementId])
+
+    const { statusCode } = await submitCollection(goodPayload)
+
+    expect(statusCode).toEqual(HTTP_STATUS.CREATED)
+    const [recordInDb, ...others] = await server.db
+      .collection(collectionName('collections'))
+      .find({ movementId: goodMovementId })
+      .toArray()
+    expect(others).toEqual([])
+    expect(recordInDb).toMatchObject({
+      movementId: goodMovementId,
+      orgId: forwardedOrganisationId,
+      revision: 1,
+      traceId
+    })
+    expect(fromPayload(recordInDb.payload)).toEqual(goodPayload)
+  })
+
   // Scenario: A Collection is created when a carrier confirms duty of care.
   test('creates a collection when a valid movementId is provided', async ({
     server

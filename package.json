@@ -8,6 +8,7 @@
     "node": ">=24"
   },
   "scripts": {
+    "check:data-schemas": "node scripts/check-data-schemas.js",
     "dev": "NODE_ENV=development npm run server:watch",
     "dev:debug": "NODE_ENV=development npm run server:debug",
     "docker:dev": "npm run dev",

@@ -1,0 +1,35 @@
+{
+  "title": "Widget",
+  "description": "A fixture entity using each bsonType.",
+  "bsonType": "object",
+  "additionalProperties": false,
+  "required": [
+    "_id",
+    "count",
+    "createdAt",
+    "payload",
+    "isOpen",
+    "tags",
+    "owner"
+  ],
+  "properties": {
+    "_id": { "bsonType": "objectId", "description": "Generated." },
+    "count": { "bsonType": "int", "description": "How many." },
+    "createdAt": { "bsonType": "date", "description": "When." },
+    "payload": { "bsonType": "binData", "description": "Bytes." },
+    "isOpen": { "bsonType": "bool", "description": "Whether open." },
+    "tags": {
+      "bsonType": "array",
+      "description": "Labels.",
+      "items": { "bsonType": "string", "description": "A label." }
+    },
+    "owner": {
+      "$ref": "../shared/owner.schema.json",
+      "description": "Who owns it."
+    },
+    "note": {
+      "bsonType": ["string", "null"],
+      "description": "Text, or null."
+    }
+  }
+}

@@ -4,6 +4,7 @@ import { getTraceId } from '@defra/hapi-tracing'
 import { notFound } from '@hapi/boom'
 import { getOrganisationId } from '#/common/organisation.js'
 import { handleBetaRouteError } from '#/common/route-errors.js'
+import { toResponse } from '../data/mappers/collection.js'
 
 export const recordCollection = (version) => ({
   method: 'POST',
@@ -30,7 +31,7 @@ export const recordCollection = (version) => ({
 
     try {
       const traceId = getTraceId() || randomUUID()
-      getOrganisationId(request)
+      const orgId = getOrganisationId(request)
       const movementRecord = await version.movements.getMovementRecord(
         request.db,
         movementId
@@ -40,10 +41,10 @@ export const recordCollection = (version) => ({
         return notFound('movementId not found')
       }
 
-      const response = {
-        data: null,
-        validation: { warnings: [] }
-      }
+      const collection = await version.collections.createCollectionRecord(
+        request.db,
+        { movementId, orgId, traceId, payload: request.payload }
+      )
 
       version.logger.info(
         { movementId },
@@ -52,7 +53,7 @@ export const recordCollection = (version) => ({
       request.app.journey = [{ movementId }]
 
       return h
-        .response(response)
+        .response(toResponse(collection))
         .code(HTTP_STATUS.CREATED)
         .header('x-request-id', traceId)
         .message('Successfully created a waste movement collection')

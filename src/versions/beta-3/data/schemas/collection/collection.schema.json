@@ -1,0 +1,43 @@
+{
+  "title": "Collection",
+  "description": "A Collection, as stored in `beta-3-g<N>-collections` for `POST /movements/{movementId}/collection`.",
+  "bsonType": "object",
+  "additionalProperties": false,
+  "required": [
+    "_id",
+    "orgId",
+    "revision",
+    "createdAt",
+    "updatedAt",
+    "traceId",
+    "payload",
+    "movementId"
+  ],
+  "properties": {
+    "_id": {
+      "bsonType": "objectId",
+      "description": "Generated: a Movement can have its Collection recorded more than once."
+    },
+    "orgId": { "$ref": "../common/envelope.schema.json#/properties/orgId" },
+    "revision": {
+      "$ref": "../common/envelope.schema.json#/properties/revision"
+    },
+    "createdAt": {
+      "$ref": "../common/envelope.schema.json#/properties/createdAt"
+    },
+    "updatedAt": {
+      "$ref": "../common/envelope.schema.json#/properties/updatedAt"
+    },
+    "traceId": {
+      "$ref": "../common/envelope.schema.json#/properties/traceId"
+    },
+    "payload": {
+      "$ref": "../common/envelope.schema.json#/properties/payload",
+      "description": "The `POST /movements/{movementId}/collection` request body, as sent."
+    },
+    "movementId": {
+      "bsonType": "string",
+      "description": "The Movement collected."
+    }
+  }
+}

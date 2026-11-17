@@ -8,16 +8,28 @@
   "paths": {},
   "components": {
     "schemas": {
+      "envelope": {
+        "$ref": "./common/envelope.schema.json"
+      },
       "movement": {
         "$ref": "./movement/movement.schema.json"
       },
+      "collection": {
+        "$ref": "./collection/collection.schema.json"
+      },
       "delivery": {
         "$ref": "./delivery/delivery.schema.json"
+      },
+      "receipt": {
+        "$ref": "./receipt/receipt.schema.json"
       }
     },
     "examples": {
       "movementHousehold": {
         "$ref": "./movement/movement.examples.json#/household"
+      },
+      "collectionMinimal": {
+        "$ref": "./collection/collection.examples.json#/minimal"
       },
       "deliveryNonHazardous": {
         "$ref": "./delivery/delivery.examples.json#/nonHazardous"
@@ -27,6 +39,12 @@
       },
       "deliveryUndocumentedReceipt": {
         "$ref": "./delivery/delivery.examples.json#/undocumentedReceipt"
+      },
+      "receiptDocumented": {
+        "$ref": "./receipt/receipt.examples.json#/documented"
+      },
+      "receiptUndocumented": {
+        "$ref": "./receipt/receipt.examples.json#/undocumented"
       }
     }
   }

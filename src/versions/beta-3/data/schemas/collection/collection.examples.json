@@ -1,0 +1,26 @@
+{
+  "minimal": {
+    "summary": "A Movement's Collection",
+    "value": {
+      "_id": {
+        "$oid": "6787a1b2c3d4e5f601234567"
+      },
+      "orgId": "d829f66d-857f-401d-b5e9-5061b7dbb29d",
+      "revision": 1,
+      "createdAt": {
+        "$date": "2026-01-15T09:31:02Z"
+      },
+      "updatedAt": {
+        "$date": "2026-01-15T09:31:02Z"
+      },
+      "traceId": "b9e3d4f2-5c6e-4d7f-8a81-2b3c4d5e6f70",
+      "payload": {
+        "$binary": {
+          "base64": "eyJjYXJyaWVyIjp7Im9yZ2FuaXNhdGlvbk5hbWUiOiJDYXJyaWVyIERlbW8gTHRkIiwicmVnaXN0cmF0aW9uTnVtYmVyIjoiQ0JEVTEyMzQ1NiIsIm1lYW5zT2ZUcmFuc3BvcnQiOiJST0FEIiwidmVoaWNsZVJlZ2lzdHJhdGlvbiI6IkFCMTIgQ0RFIiwiY29udGFjdERldGFpbHMiOnsiZW1haWxBZGRyZXNzIjoiY2FycmllckBleGFtcGxlLmNvbSIsInBob25lTnVtYmVyIjoiMDEyMzQ1Njc4OTAifSwiYWRkcmVzcyI6eyJmdWxsQWRkcmVzcyI6IjQgQ2FycmllciBMYW5lLCBUZXN0IENpdHkiLCJwb3N0Y29kZSI6IlRFMSA0Q1IifX0sImNvbGxlY3Rpb25EYXRlVGltZSI6IjIwMjYtMDEtMTVUMDk6MzA6MDBaIiwiY29sbGVjdGlvblNpdGUiOnsiYWRkcmVzcyI6eyJmdWxsQWRkcmVzcyI6IjEwIEluZHVzdHJpYWwgV2F5LCBUZXN0IENpdHkiLCJwb3N0Y29kZSI6IlRFMSAyUFEifSwiY29udGFjdERldGFpbHMiOnsiZW1haWxBZGRyZXNzIjoic2l0ZUBleGFtcGxlLmNvbSIsInBob25lTnVtYmVyIjoiMDEyMzQ1Njc4OTAifX0sImlzRHV0eU9mQ2FyZUNvbmZpcm1lZCI6dHJ1ZX0=",
+          "subType": "00"
+        }
+      },
+      "movementId": "26HRA0B2"
+    }
+  }
+}

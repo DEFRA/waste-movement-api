@@ -21,7 +21,9 @@ import {
   wasteItem
 } from '../schemas/test-helpers.js'
 import { createMovementId } from '#/common/http/waste-tracking.js'
+import { fromPayload } from '#/common/data/payload.js'
 import { collectionName, version } from '../index.js'
+import { storeMovements } from '../data/test-helpers.js'
 
 const { apiVersion } = version
 
@@ -184,7 +186,8 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
     expect(createMovementRecordSpy).toHaveBeenCalledWith(expect.anything(), {
       movementId: expect.any(String),
       orgId: forwardedOrganisationId,
-      wasteItems
+      traceId,
+      payload: goodPayload
     })
   })
 
@@ -641,17 +644,20 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
     expect(createMovementRecordSpy).toHaveBeenCalledTimes(0)
   })
 
-  test('stores the waste items', async ({ server }) => {
+  test('stores the request as sent, and whether it is hazardous', async ({
+    server
+  }) => {
     vi.mocked(createMovementId).mockResolvedValueOnce('26CLS001')
+    const payload = {
+      ...goodPayload,
+      wasteItems: [wasteItem, hazardousWasteItem],
+      consignmentNote
+    }
 
     const { statusCode } = await server.inject({
       method: 'POST',
       url: `/${apiVersion}/movements`,
-      payload: {
-        ...goodPayload,
-        wasteItems: [wasteItem, hazardousWasteItem],
-        consignmentNote
-      },
+      payload,
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
@@ -662,14 +668,19 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
     expect(statusCode).toEqual(HTTP_STATUS.CREATED)
     const recordInDb = await server.db
       .collection(collectionName('movements'))
-      .findOne({ movementId: '26CLS001' }, { projection: { _id: 0 } })
+      .findOne({ _id: '26CLS001' })
 
     expect(recordInDb).toEqual({
-      movementId: '26CLS001',
+      _id: '26CLS001',
       orgId: forwardedOrganisationId,
-      wasteItems: [wasteItem, hazardousWasteItem],
-      createdAt: expect.any(String)
+      revision: 1,
+      createdAt: expect.any(Date),
+      updatedAt: recordInDb.createdAt,
+      traceId,
+      payload: expect.anything(),
+      isHazardous: true
     })
+    expect(fromPayload(recordInDb.payload)).toEqual(payload)
   })
 
   describe('when the movement ID is already stored', () => {
@@ -681,7 +692,7 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
     }
 
     test.beforeEach(async ({ movements }) => {
-      await movements.deleteMany({ movementId })
+      await movements.deleteMany({ _id: movementId })
     })
 
     test('counts a retry finding it as the earlier attempt having succeeded', async ({
@@ -708,14 +719,15 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
       expect(statusCode).toEqual(HTTP_STATUS.CREATED)
       expect(result.data).toEqual({ movementId })
       expect(createMovementRecordSpy).toHaveBeenCalledTimes(2)
-      expect(await movements.countDocuments({ movementId })).toBe(1)
+      expect(await movements.countDocuments({ _id: movementId })).toBe(1)
     })
 
     test('is a 500, not retried, when the first attempt finds it: the ID was minted twice', async ({
       server,
       movements
     }) => {
-      await movements.insertOne({ movementId, orgId: 'another-org' })
+      await storeMovements(server.db, [movementId])
+      const stored = await movements.findOne({ _id: movementId })
       const createMovementRecordSpy = vi.spyOn(
         movementCreate,
         'createMovementRecord'
@@ -731,9 +743,7 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
 
       expect(statusCode).toEqual(HTTP_STATUS.INTERNAL_SERVER_ERROR)
       expect(createMovementRecordSpy).toHaveBeenCalledTimes(1)
-      expect(
-        await movements.findOne({ movementId }, { projection: { _id: 0 } })
-      ).toEqual({ movementId, orgId: 'another-org' })
+      expect(await movements.findOne({ _id: movementId })).toEqual(stored)
     })
   })
 
@@ -1821,7 +1831,7 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
     })
 
     describe('Scenario: The declared hazardous properties are stored with the movement', () => {
-      test("stores each waste item's declaration", async ({
+      test("stores each waste item's declaration, and that the movement is hazardous", async ({
         server,
         submit
       }) => {
@@ -1837,9 +1847,12 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
         expect(statusCode).toEqual(HTTP_STATUS.CREATED)
         const recordInDb = await server.db
           .collection(collectionName('movements'))
-          .findOne({ movementId: '26HAZ001' })
+          .findOne({ _id: '26HAZ001' })
 
-        expect(recordInDb.wasteItems[0].classification.hazardous).toEqual({
+        expect(recordInDb.isHazardous).toBe(true)
+        expect(
+          fromPayload(recordInDb.payload).wasteItems[0].classification.hazardous
+        ).toEqual({
           ...hazardousPresent,
           codes: ['HP_4', 'HP_8']
         })
