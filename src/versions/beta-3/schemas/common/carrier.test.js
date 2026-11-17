@@ -70,6 +70,21 @@ describe('Feature: Schema - declaring a carrier of the waste', () => {
     })
   })
 
+  describe('Scenario: Validation passes when a carrier moving waste by a fixed conveyance is declared without a registration number', () => {
+    test('validation passes when the reason is FIXED_CONVEYANCE and the waste is piped', () => {
+      const payload = {
+        ...withoutField(
+          'registrationNumber',
+          withoutField('vehicleRegistration')
+        ),
+        reasonForNoRegistrationNumber: 'FIXED_CONVEYANCE',
+        meansOfTransport: 'PIPED'
+      }
+
+      expect(validateAjv(payload).valid).toBe(true)
+    })
+  })
+
   describe('Scenario: Validation fails when an intended carrier is declared with both a registration number and a reason for no registration number', () => {
     test('validation fails and the reason is reported as not allowed alongside a registration number', () => {
       const { valid, errors } = validateAjv({
