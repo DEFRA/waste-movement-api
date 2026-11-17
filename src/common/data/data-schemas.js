@@ -25,8 +25,6 @@ const isPlainObject = (value) =>
   !(value instanceof Date) &&
   value._bsontype === undefined
 
-const INT32_MAX = 2 ** 31 - 1
-
 // What each bsonType a schema here uses looks like as a JavaScript value, as
 // the driver writes and reads it
 const bsonTypes = {
@@ -34,8 +32,9 @@ const bsonTypes = {
   binData: isBsonValue('Binary'),
   bool: (value) => typeof value === 'boolean',
   date: (value) => value instanceof Date,
+  // An int32 survives being stored in an Int32Array unchanged
   int: (value) =>
-    Number.isInteger(value) && value >= -INT32_MAX - 1 && value <= INT32_MAX,
+    typeof value === 'number' && Int32Array.of(value)[0] === value,
   null: (value) => value === null,
   object: isPlainObject,
   objectId: isBsonValue('ObjectId'),

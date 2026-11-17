@@ -70,10 +70,10 @@ export const breakingChanges = (base, head) => {
       const removed = (before.enum ?? []).filter(
         (value) => after.enum && !after.enum.includes(value)
       )
-      if (removed.length > 0 || (!before.enum && after.enum)) {
-        lines.push(
-          `~ enum     ${at}: ${removed.length > 0 ? `no longer ${removed.join(', ')}` : 'restricted'}`
-        )
+      if (removed.length > 0) {
+        lines.push(`~ enum     ${at}: no longer ${removed.join(', ')}`)
+      } else if (!before.enum && after.enum) {
+        lines.push(`~ enum     ${at}: restricted`)
       }
     }
   }
@@ -101,6 +101,35 @@ const readGeneration = async (versionDir) => {
     : undefined
 }
 
+const schemasDir = (root, apiVersion) =>
+  path.join(root, apiVersion, 'data', 'schemas')
+
+const compareVersion = async (baseRoot, headRoot, apiVersion) => {
+  const [baseGeneration, headGeneration] = await Promise.all([
+    readGeneration(path.join(baseRoot, apiVersion)),
+    readGeneration(path.join(headRoot, apiVersion))
+  ])
+  const isGenerationBumped =
+    baseGeneration !== undefined && headGeneration > baseGeneration
+  const baseSchemas = schemasDir(baseRoot, apiVersion)
+  const headSchemas = schemasDir(headRoot, apiVersion)
+  const headEntities = entityNames(headSchemas)
+
+  return entityNames(baseSchemas)
+    .map((entity) => ({
+      apiVersion,
+      entity,
+      changes: headEntities.includes(entity)
+        ? breakingChanges(
+            flattenSchema(loadDataSchema(baseSchemas, entity)),
+            flattenSchema(loadDataSchema(headSchemas, entity))
+          )
+        : ['- removed  (the whole entity)'],
+      isGenerationBumped
+    }))
+    .filter(({ changes }) => changes.length > 0)
+}
+
 /**
  * Compares every API version's DB schemas in `headRoot` with the same
  * version's in `baseRoot`. A version or entity new in head has nothing to
@@ -113,34 +142,18 @@ const readGeneration = async (versionDir) => {
  * DATA_GENERATION was bumped
  */
 export const compareDataSchemas = async (baseRoot, headRoot) => {
-  const results = []
+  const apiVersions = readdirSync(headRoot)
+    .sort()
+    .filter(
+      (apiVersion) =>
+        existsSync(schemasDir(headRoot, apiVersion)) &&
+        existsSync(schemasDir(baseRoot, apiVersion))
+    )
 
-  for (const apiVersion of readdirSync(headRoot).sort()) {
-    const headSchemas = path.join(headRoot, apiVersion, 'data', 'schemas')
-    const baseSchemas = path.join(baseRoot, apiVersion, 'data', 'schemas')
-    if (!existsSync(headSchemas) || !existsSync(baseSchemas)) {
-      continue
-    }
-
-    const headGeneration = await readGeneration(path.join(headRoot, apiVersion))
-    const baseGeneration = await readGeneration(path.join(baseRoot, apiVersion))
-    const isGenerationBumped =
-      baseGeneration !== undefined && headGeneration > baseGeneration
-    const headEntities = entityNames(headSchemas)
-
-    for (const entity of entityNames(baseSchemas)) {
-      const changes = headEntities.includes(entity)
-        ? breakingChanges(
-            flattenSchema(loadDataSchema(baseSchemas, entity)),
-            flattenSchema(loadDataSchema(headSchemas, entity))
-          )
-        : ['- removed  (the whole entity)']
-
-      if (changes.length > 0) {
-        results.push({ apiVersion, entity, changes, isGenerationBumped })
-      }
-    }
-  }
-
-  return results
+  const results = await Promise.all(
+    apiVersions.map((apiVersion) =>
+      compareVersion(baseRoot, headRoot, apiVersion)
+    )
+  )
+  return results.flat()
 }

@@ -11,6 +11,20 @@ const sameIndex = (declared, existing) =>
   isDeepStrictEqual(declared.key, existing.key) &&
   Boolean(declared.unique) === Boolean(existing.unique)
 
+const dropIndex = async (collection, name, logger) => {
+  try {
+    await collection.dropIndex(name)
+    logger.info(
+      { collection: collection.collectionName, index: name },
+      `Dropped index ${name} from ${collection.collectionName}`
+    )
+  } catch (error) {
+    if (error.code !== INDEX_NOT_FOUND) {
+      throw error
+    }
+  }
+}
+
 /**
  * Creates the declared indexes that are missing and drops the ones no longer
  * declared, by name. One declared with a different key or uniqueness is
@@ -24,17 +38,7 @@ const syncIndexes = async (collection, declared, logger) => {
   for (const index of existing) {
     const wanted = declared.find(({ name }) => name === index.name)
     if (!wanted || !sameIndex(wanted, index)) {
-      try {
-        await collection.dropIndex(index.name)
-        logger.info(
-          { collection: collection.collectionName, index: index.name },
-          `Dropped index ${index.name} from ${collection.collectionName}`
-        )
-      } catch (error) {
-        if (error.code !== INDEX_NOT_FOUND) {
-          throw error
-        }
-      }
+      await dropIndex(collection, index.name, logger)
     }
   }
 
@@ -45,6 +49,54 @@ const syncIndexes = async (collection, declared, logger) => {
       )
     ) {
       await collection.createIndex(key, { name, unique: Boolean(unique) })
+    }
+  }
+}
+
+const assertDocumentsMatch = async (db, collectionName, validator) => {
+  const mismatched = await db
+    .collection(collectionName)
+    .findOne({ $nor: [validator] }, { projection: { _id: 1 } })
+  if (mismatched) {
+    throw new Error(
+      `${collectionName} holds documents that don't match its schema, e.g. ${mismatched._id}: bump DATA_GENERATION`
+    )
+  }
+}
+
+const updateValidator = async (db, collectionName, validator, logger) => {
+  try {
+    await db.command({
+      collMod: collectionName,
+      validator,
+      validationLevel: 'strict',
+      validationAction: 'error'
+    })
+    logger.info(
+      { collection: collectionName },
+      `Updated the validator of ${collectionName}`
+    )
+  } catch (error) {
+    if (error.code === UNAUTHORIZED) {
+      throw new Error(
+        `Can't update the validator of ${collectionName}, as that needs the dbAdmin role: bump DATA_GENERATION`,
+        { cause: error }
+      )
+    }
+    throw error
+  }
+}
+
+const createCollection = async (db, collectionName, validator) => {
+  try {
+    await db.createCollection(collectionName, {
+      validator,
+      validationLevel: 'strict',
+      validationAction: 'error'
+    })
+  } catch (error) {
+    if (error.code !== NAMESPACE_EXISTS) {
+      throw error
     }
   }
 }
@@ -77,49 +129,12 @@ export const syncCollection = async (
     .toArray()
 
   if (existing) {
-    const mismatched = await db
-      .collection(collectionName)
-      .findOne({ $nor: [validator] }, { projection: { _id: 1 } })
-    if (mismatched) {
-      throw new Error(
-        `${collectionName} holds documents that don't match its schema, e.g. ${mismatched._id}: bump DATA_GENERATION`
-      )
-    }
-
+    await assertDocumentsMatch(db, collectionName, validator)
     if (!isDeepStrictEqual(existing.options?.validator, validator)) {
-      try {
-        await db.command({
-          collMod: collectionName,
-          validator,
-          validationLevel: 'strict',
-          validationAction: 'error'
-        })
-        logger.info(
-          { collection: collectionName },
-          `Updated the validator of ${collectionName}`
-        )
-      } catch (error) {
-        if (error.code === UNAUTHORIZED) {
-          throw new Error(
-            `Can't update the validator of ${collectionName}, as that needs the dbAdmin role: bump DATA_GENERATION`,
-            { cause: error }
-          )
-        }
-        throw error
-      }
+      await updateValidator(db, collectionName, validator, logger)
     }
   } else {
-    try {
-      await db.createCollection(collectionName, {
-        validator,
-        validationLevel: 'strict',
-        validationAction: 'error'
-      })
-    } catch (error) {
-      if (error.code !== NAMESPACE_EXISTS) {
-        throw error
-      }
-    }
+    await createCollection(db, collectionName, validator)
   }
 
   await syncIndexes(db.collection(collectionName), indexes, logger)
