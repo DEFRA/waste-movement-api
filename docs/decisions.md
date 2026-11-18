@@ -23,10 +23,11 @@ encodes the contract stays in the version folder, even if it's currently identic
 **Why:** shared contract code is how versions drift into each other. Generic code changing for every
 version at once is what we want.
 
-## Data revisions, reset by hand
+## Data generations, reset by hand
 
-Each version stores data in its own collections, `<version>-r<DATA_REVISION>-<name>`. When the stored
-shape changes incompatibly, a developer bumps `DATA_REVISION`; on boot the service drops that
-version's collections for every other revision. There is no migration.
+Each version stores data in its own collections, `<version>-g<DATA_GENERATION>-<name>`. When the
+stored shape changes incompatibly, a developer bumps `DATA_GENERATION`; on boot the service drops
+that version's collections for every other generation. There is no migration. (Renamed from "data
+revision", so it can't be confused with a per-document revision.)
 
 **Why:** beta data is disposable, so a reset is enough, and a manual bump is simple and explicit.

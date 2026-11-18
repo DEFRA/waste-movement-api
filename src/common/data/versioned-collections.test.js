@@ -1,19 +1,19 @@
 import { MongoClient } from 'mongodb'
 import { createLogger } from '#/common/helpers/logging/logger.js'
 import {
-  sweepStaleRevisions,
+  sweepStaleGenerations,
   versionedCollections
 } from './versioned-collections.js'
 
 describe('versionedCollections', () => {
-  test('names a collection for an API version and data revision', () => {
+  test('names a collection for an API version and data generation', () => {
     expect(versionedCollections('beta-3', 1)('movements')).toBe(
-      'beta-3-r1-movements'
+      'beta-3-g1-movements'
     )
   })
 })
 
-describe('sweepStaleRevisions', () => {
+describe('sweepStaleGenerations', () => {
   let client
   let db
 
@@ -30,12 +30,13 @@ describe('sweepStaleRevisions', () => {
   beforeEach(async () => {
     await db.dropDatabase()
     for (const name of [
-      'beta-3-r0-movements',
-      'beta-3-r0-deliveries',
+      'beta-3-g0-movements',
+      'beta-3-g0-deliveries',
+      'beta-3-g1-movements',
+      'beta-3-g1-deliveries',
       'beta-3-r1-movements',
-      'beta-3-r1-deliveries',
-      'beta-30-r0-movements',
-      'beta-4-r0-movements',
+      'beta-30-g0-movements',
+      'beta-4-g0-movements',
       'beta-3-movements'
     ]) {
       await db.createCollection(name)
@@ -47,34 +48,35 @@ describe('sweepStaleRevisions', () => {
     await client.close()
   })
 
-  test("drops the version's collections for other revisions only", async () => {
-    const dropped = await sweepStaleRevisions(db, 'beta-3', 1)
+  test("drops the version's collections for other generations, and its old revision-named ones", async () => {
+    const dropped = await sweepStaleGenerations(db, 'beta-3', 1)
 
     expect(dropped.sort()).toEqual([
-      'beta-3-r0-deliveries',
-      'beta-3-r0-movements'
+      'beta-3-g0-deliveries',
+      'beta-3-g0-movements',
+      'beta-3-r1-movements'
     ])
     expect(await collectionNames()).toEqual([
+      'beta-3-g1-deliveries',
+      'beta-3-g1-movements',
       'beta-3-movements',
-      'beta-3-r1-deliveries',
-      'beta-3-r1-movements',
-      'beta-30-r0-movements',
-      'beta-4-r0-movements'
+      'beta-30-g0-movements',
+      'beta-4-g0-movements'
     ])
   })
 
   test('logs each drop', async () => {
     const infoSpy = vi.spyOn(createLogger(), 'info')
 
-    await sweepStaleRevisions(db, 'beta-3', 1)
+    await sweepStaleGenerations(db, 'beta-3', 1)
 
     expect(infoSpy).toHaveBeenCalledWith(
       {
         apiVersion: 'beta-3',
-        revision: 1,
-        collection: 'beta-3-r0-movements'
+        generation: 1,
+        collection: 'beta-3-g0-movements'
       },
-      'Dropped beta-3-r0-movements, a stale beta-3 data revision'
+      'Dropped beta-3-g0-movements, a stale beta-3 data generation'
     )
   })
 
@@ -88,7 +90,9 @@ describe('sweepStaleRevisions', () => {
       drop: () => Promise.reject(namespaceNotFound)
     })
 
-    await expect(sweepStaleRevisions(db, 'beta-3', 1)).resolves.toHaveLength(2)
+    await expect(sweepStaleGenerations(db, 'beta-3', 1)).resolves.toHaveLength(
+      3
+    )
   })
 
   test('rethrows any other failure to drop', async () => {
@@ -97,6 +101,6 @@ describe('sweepStaleRevisions', () => {
       drop: () => Promise.reject(failure)
     })
 
-    await expect(sweepStaleRevisions(db, 'beta-3', 1)).rejects.toBe(failure)
+    await expect(sweepStaleGenerations(db, 'beta-3', 1)).rejects.toBe(failure)
   })
 })
