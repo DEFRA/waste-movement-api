@@ -1,0 +1,34 @@
+{
+  "nonHazardous": {
+    "summary": "The one Delivery for every non-hazardous Movement submitted",
+    "value": {
+      "_id": { "$oid": "6966b3a6c2f1a40b8e9d1a02" },
+      "deliveryId": "26KMT4Z9",
+      "movementIds": ["26HRA0B2", "26HRA0B3"],
+      "wasteType": "NON_HAZARDOUS",
+      "orgId": "d829f66d-857f-401d-b5e9-5061b7dbb29d",
+      "createdAt": "2026-01-15T14:02:11.000Z"
+    }
+  },
+  "hazardous": {
+    "summary": "A hazardous Movement's own Delivery, with its Movement ID as the Delivery ID",
+    "value": {
+      "_id": { "$oid": "6966b3a6c2f1a40b8e9d1a03" },
+      "deliveryId": "26HRA0B4",
+      "movementIds": ["26HRA0B4"],
+      "wasteType": "HAZARDOUS",
+      "orgId": "d829f66d-857f-401d-b5e9-5061b7dbb29d",
+      "createdAt": "2026-01-15T14:02:11.000Z"
+    }
+  },
+  "undocumentedReceipt": {
+    "summary": "The empty Delivery `POST /receipts` creates for an undocumented Receipt",
+    "value": {
+      "_id": { "$oid": "6966b3a6c2f1a40b8e9d1a04" },
+      "deliveryId": "26KMT5A1",
+      "movementIds": [],
+      "orgId": "d829f66d-857f-401d-b5e9-5061b7dbb29d",
+      "createdAt": "2026-01-16T08:45:00.000Z"
+    }
+  }
+}

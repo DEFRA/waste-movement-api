@@ -1,0 +1,33 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Digital Waste Tracking API — stored data",
+    "version": "beta-3",
+    "description": "What `beta-3` stores in MongoDB: one schema per collection (`beta-3-g<N>-<entity>s`), with example documents as relaxed Extended JSON. It has no endpoints: it only gathers the DB schemas in one document to browse. Types are MongoDB's `bsonType`, which OpenAPI tools show as an unknown keyword rather than a type. See README.md beside this file."
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "movement": {
+        "$ref": "./movement/movement.schema.json"
+      },
+      "delivery": {
+        "$ref": "./delivery/delivery.schema.json"
+      }
+    },
+    "examples": {
+      "movementHousehold": {
+        "$ref": "./movement/movement.examples.json#/household"
+      },
+      "deliveryNonHazardous": {
+        "$ref": "./delivery/delivery.examples.json#/nonHazardous"
+      },
+      "deliveryHazardous": {
+        "$ref": "./delivery/delivery.examples.json#/hazardous"
+      },
+      "deliveryUndocumentedReceipt": {
+        "$ref": "./delivery/delivery.examples.json#/undocumentedReceipt"
+      }
+    }
+  }
+}

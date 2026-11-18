@@ -1,0 +1,27 @@
+{
+  "household": {
+    "summary": "A household Movement with no hazardous properties declared",
+    "value": {
+      "_id": { "$oid": "6966b3a6c2f1a40b8e9d1a01" },
+      "movementId": "26HRA0B2",
+      "orgId": "d829f66d-857f-401d-b5e9-5061b7dbb29d",
+      "wasteItems": [
+        {
+          "classification": {
+            "wasteDescription": "Mixed municipal waste",
+            "ewcCodes": ["200301"],
+            "pops": { "isPresent": false },
+            "hazardous": { "isPresent": false }
+          },
+          "physicalDetails": {
+            "form": "MIXED",
+            "containerType": "LOO",
+            "containerCount": 0,
+            "totalWeight": { "amount": 2, "unit": "TONNES", "isEstimate": true }
+          }
+        }
+      ],
+      "createdAt": "2026-01-15T09:31:02.000Z"
+    }
+  }
+}
