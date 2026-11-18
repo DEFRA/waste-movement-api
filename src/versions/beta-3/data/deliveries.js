@@ -3,7 +3,7 @@ import { createLogger } from '#/common/helpers/logging/logger.js'
 const logger = createLogger()
 
 /**
- * The delivery data access for one collection, e.g. `beta-3-r1-deliveries`.
+ * The delivery data access for one collection, e.g. `beta-3-g1-deliveries`.
  *
  * @param {string} collectionName
  */

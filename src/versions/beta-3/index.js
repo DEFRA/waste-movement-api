@@ -1,9 +1,9 @@
 import {
-  sweepStaleRevisions,
+  sweepStaleGenerations,
   versionedCollections
 } from '#/common/data/versioned-collections.js'
 import { createLogger } from '#/common/helpers/logging/logger.js'
-import { DATA_REVISION } from './data/revision.js'
+import { DATA_GENERATION } from './data/generation.js'
 import { deliveryData } from './data/deliveries.js'
 import { movementData } from './data/movements.js'
 import { createMovement } from './routes/create-movement.js'
@@ -15,8 +15,8 @@ import { validators } from './schemas/validators.js'
 
 const apiVersion = 'beta-3'
 // Names this version's collections, e.g. collectionName('movements') is
-// `beta-3-r1-movements`.
-export const collectionName = versionedCollections(apiVersion, DATA_REVISION)
+// `beta-3-g1-movements`.
+export const collectionName = versionedCollections(apiVersion, DATA_GENERATION)
 
 /**
  * Everything the routes need from this version. Its data access objects are
@@ -47,7 +47,7 @@ export const beta3 = {
     name: apiVersion,
     dependencies: ['mongodb'],
     register: async (server) => {
-      await sweepStaleRevisions(server.db, apiVersion, DATA_REVISION)
+      await sweepStaleGenerations(server.db, apiVersion, DATA_GENERATION)
       await version.movements.createIndexes(server.db)
       await version.deliveries.createIndexes(server.db)
 

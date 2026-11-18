@@ -10,7 +10,7 @@ Core Delivery Platform (CDP). Built from the CDP Node.js backend template.
   - [Layout](#layout)
   - [Adding a version](#adding-a-version)
   - [Retiring a version](#retiring-a-version)
-  - [Stored data and DATA_REVISION](#stored-data-and-data_revision)
+  - [Stored data and DATA_GENERATION](#stored-data-and-data_generation)
 - [Requirements](#requirements)
   - [Node.js](#nodejs)
 - [Local development](#local-development)
@@ -96,7 +96,7 @@ src/
                        ajv errors mapped to the 400's errors[], withPayloadChecks, and the
                        generic date-time checks (emptyIsNotProvided, notInFuture)
     http/              waste-tracking-id-backend client: createMovementId, createDeliveryId
-    data/              versionedCollections, sweepStaleRevisions, isDuplicateKeyError,
+    data/              versionedCollections, sweepStaleGenerations, isDuplicateKeyError,
                        insertWithRetry (a duplicate key on a retry counts as success)
     openapi/           bundle(specPath): an OpenAPI document with every $ref resolved
     organisation.js    getOrganisationId, from the x-dwt-organisation-id header
@@ -109,7 +109,7 @@ src/
     routes/            one file per endpoint, each a function of the version (index.js)
     schemas/           JSON Schemas, examples, openapi.json and the conventions they follow
     checks/            this version's payload checks: rules a schema can't express
-    data/              DATA_REVISION, and movement and delivery data access
+    data/              DATA_GENERATION, and movement and delivery data access
     tests/             its integration tests, over real HTTP (unit tests sit beside their code)
 ```
 
@@ -119,7 +119,7 @@ src/
 2. In the copy, set `apiVersion` in `index.js`, rename the plugin export,
    and set `info.version` and `servers[].url` in `schemas/openapi.json`. The tests take the version
    name and collection names from `index.js`, so only comments still mention the old name.
-3. Set `DATA_REVISION` in `data/revision.js` back to `1`: the new version starts on its own
+3. Set `DATA_GENERATION` in `data/generation.js` back to `1`: the new version starts on its own
    collections.
 4. Register it in [src/plugins/router.js](src/plugins/router.js):
    `await server.register(beta4, { routes: { prefix: '/beta-4' } })`.
@@ -131,22 +131,23 @@ Then change the new version freely; the old one is untouched.
 ### Retiring a version
 
 Delete its folder and its line in `router.js`, and its routes from the route lists in tests. Its
-collections (`<version>-r<N>-*`) are left in MongoDB; drop them by hand once nothing needs them.
+collections (`<version>-g<N>-*`) are left in MongoDB; drop them by hand once nothing needs them.
 
-### Stored data and DATA_REVISION
+### Stored data and DATA_GENERATION
 
-Each version stores its data in its own collections, named `<version>-r<DATA_REVISION>-<name>`, e.g.
-`beta-3-r1-movements` and `beta-3-r1-deliveries`.
+Each version stores its data in its own collections, named `<version>-g<DATA_GENERATION>-<name>`,
+e.g. `beta-3-g1-movements` and `beta-3-g1-deliveries`.
 
-**Bump `DATA_REVISION`** (in the version's `data/revision.js`) when a change means the code can no
-longer read what's already stored, e.g. a stored field is renamed, moved or changes type. Adding a
+**Bump `DATA_GENERATION`** (in the version's `data/generation.js`) when a change means the code can
+no longer read what's already stored, e.g. a stored field is renamed, moved or changes type. Adding a
 field the code treats as optional doesn't need a bump. There is no migration: on its next boot the
 service starts on new, empty collections and drops that version's collections for every other
-revision. Beta data is disposable, so this is the reset.
+generation (and any still named by the older `-r<N>-` "data revision" scheme). Beta data is
+disposable, so this is the reset.
 
-Note that every instance sweeps on boot. While a deploy that bumps the revision rolls out, old
-instances keep writing to the old revision's collections, which a new instance may already have
-dropped; and an old instance that restarts mid-rollout would drop the new revision's. Bump it only
+Note that every instance sweeps on boot. While a deploy that bumps the generation rolls out, old
+instances keep writing to the old generation's collections, which a new instance may already have
+dropped; and an old instance that restarts mid-rollout would drop the new generation's. Bump it only
 where losing data written during the rollout is acceptable.
 
 Indexes are created on boot: `movementId` is unique; `deliveryId` isn't, since a resubmitted

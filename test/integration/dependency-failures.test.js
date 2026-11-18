@@ -8,12 +8,12 @@ import {
   receiver,
   wasteItem
 } from '#/versions/beta-3/schemas/test-helpers.js'
-import { DATA_REVISION } from '#/versions/beta-3/data/revision.js'
+import { DATA_GENERATION } from '#/versions/beta-3/data/generation.js'
 import { versionedCollections } from '#/common/data/versioned-collections.js'
 
 const movementsCollection = versionedCollections(
   'beta-3',
-  DATA_REVISION
+  DATA_GENERATION
 )('movements')
 
 const minimalMovement = {
