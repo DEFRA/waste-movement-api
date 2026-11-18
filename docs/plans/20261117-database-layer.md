@@ -4,19 +4,16 @@
 
 ## Progress
 
-| Part                                        | State                                                                                                                                                                                                                                          |
-| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Naming: `DATA_REVISION` → `DATA_GENERATION` | **Done** on `main` (#7).                                                                                                                                                                                                                       |
-| 1. One collection per entity                | **Done** (DWTC-317): movements, collections, deliveries, receipts. Only a movement's `_id` is its natural ID; the others have a generated `_id` and an index on their linking ID, to keep today's resubmission behaviour (open questions 2–3). |
-| 1. History collections and updates          | **Deferred**: there are no update routes yet. [Backlog](../backlog/updates-and-history-collections.md).                                                                                                                                        |
-| 2. ETag                                     | **Partly**: every document carries `revision: 1`. The HTTP side (`ETag`, `If-Match`, 412) is [in the backlog](../backlog/etag-if-match-http.md).                                                                                               |
-| 3. Payload + business fields                | **Done** (DWTC-317). Responses hold only IDs today; `POST /deliveries`' is built from the stored groupings, as it's derived, not sent.                                                                                                         |
-| 4. Mappers                                  | **Done** (DWTC-317): `data/mappers/`, with every API example run through API → DB → API in `schemas.test.js`.                                                                                                                                  |
-| 5. DB schema files                          | **Done** on `main` (#8), then moved to the envelope shape (DWTC-317, `DATA_GENERATION` 2), with `openapi.json` to browse them.                                                                                                                 |
-| 5. ajv, `$jsonSchema` validator, index sync | **Done** (DWTC-317): `entityStore`, `syncCollection`.                                                                                                                                                                                          |
-| 6. Changing a DB schema                     | **Done** (DWTC-317). Removing an enum value also counts as breaking.                                                                                                                                                                           |
-| 7. CI check and refusing to start           | **Done** (DWTC-317): `npm run check:data-schemas`, in `check-pull-request.yml`; boot fails on mismatched documents or a validator it can't update.                                                                                             |
-| 8. Outbox                                   | Not started, as planned.                                                                                                                                                                                                                       |
+Only what's on `main` counts as done. The rest is prototyped in the DWTC-317 POC, not done.
+
+| Part                                                         | State                                                                                                                                                                                                     |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Naming: `DATA_REVISION` → `DATA_GENERATION`                  | **Done** (#7).                                                                                                                                                                                            |
+| 5. DB schema files                                           | **Partly done** (#8): schema, indexes and examples for movements and deliveries, plus `openapi.json`. They describe today's stored shape (no envelope or payload) and nothing loads or enforces them yet. |
+| 2. Document revision and ETag                                | Possible later, not required for this stage.                                                                                                                                                              |
+| 4. API → DB → API mapping                                    | Possible later, not required for this stage: the request is saved as-is in `payload`.                                                                                                                     |
+| 8. DB → outbox mapper, to send to GIO                        | Possible later, not required for this stage.                                                                                                                                                              |
+| 1, 3, 4 (`toDocument`), 5 (ajv, validator, index sync), 6, 7 | Not done.                                                                                                                                                                                                 |
 
 ## Why
 
@@ -72,6 +69,8 @@ An update runs in one transaction: copy the current document into history, then 
 
 ### 2. ETag updates using the document revision
 
+> **Possible later, not required for this stage**: neither the `revision` field nor the ETag.
+
 The document revision lets clients make **conditional updates**:
 
 - A read returns `ETag: "3"`.
@@ -97,6 +96,10 @@ What this gives us:
 - If they ever need rebuilding, they can be worked out again from the payload.
 
 ### 4. Mappers
+
+> **API → DB → API: possible later, not required for this stage.** The request is saved as-is in
+> `payload`, so there's nothing to map it to or back from; `toResponse` and the round-trip tests can
+> wait. Working out the business fields (e.g. `isHazardous`) when writing is still needed.
 
 For each entity, a small module of pure functions:
 
@@ -161,6 +164,8 @@ match the new schema.
 
 ### 8. Ready for an outbox later
 
+> **Possible later, not required for this stage**: a DB → outbox mapper, to send records to GIO.
+
 We're not building the audit outbox to GIO now, but the design allows for it:
 
 - Every write already happens through one place (the store) and can run in one transaction.
@@ -179,10 +184,10 @@ We're not building the audit outbox to GIO now, but the design allows for it:
 ## Open questions
 
 1. Does our Mongo user on CDP have the `dbAdmin` role? It's needed to update a validator in place. Without
-   it, every schema change needs a `DATA_GENERATION` bump. _Open: [backlog](../backlog/cdp-mongo-dbadmin-role.md)._
+   it, every schema change needs a `DATA_GENERATION` bump.
 2. What identifies a collection and a receipt (`movementId`? `deliveryId`?), and is a second submission an
-   update or a 409? _Open: [backlog](../backlog/collection-receipt-identity.md)._
+   update or a 409?
 3. A resubmitted hazardous movement currently creates a duplicate delivery. Should it become an update or a
-   409? _Open: [backlog](../backlog/hazardous-resubmission-duplicate-delivery.md)._
+   409?
 4. How should the future outbox survive a `DATA_GENERATION` reset without losing unsent audit messages?
 5. Does this address the concerns raised about the ROW approach in the Equal Experts Slack thread?
