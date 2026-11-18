@@ -1,15 +1,22 @@
 import { MongoClient } from 'mongodb'
-import { collectionName as versionCollectionName, version } from '../index.js'
-import { deliveryData } from './deliveries.js'
+import { fromPayload } from '#/common/data/payload.js'
+import {
+  collectionName as versionCollectionName,
+  dataSchemas,
+  version
+} from '../index.js'
 
 const collectionName = versionCollectionName('deliveries')
 
 const {
-  createIndexes,
+  sync,
   findDeliveryMovementIds,
   createDeliveryRecords,
-  createDeliveryRecord
-} = deliveryData(collectionName)
+  createUndocumentedDeliveryRecord
+} = version.deliveries
+
+const orgId = '57aed195-325e-45d5-b1fb-5f201e0324cf'
+const traceId = 'trace-id-123'
 
 const failingDb = (error) => ({
   collection: vi.fn().mockImplementation(() => {
@@ -28,8 +35,7 @@ describe('delivery data', () => {
     client = await MongoClient.connect(process.env.MONGO_URI)
     db = client.db(`${version.apiVersion}-data-test`)
     await db.dropDatabase()
-    await db.createCollection(collectionName)
-    await createIndexes(db)
+    await sync(db)
 
     vi.useFakeTimers({ toFake: ['Date'] })
   })
@@ -45,7 +51,7 @@ describe('delivery data', () => {
     await deliveriesCollection.deleteMany({})
   })
 
-  describe('createIndexes', () => {
+  describe('sync', () => {
     it('indexes deliveryId without making it unique', async () => {
       const indexes = await deliveriesCollection.indexes()
 
@@ -59,11 +65,21 @@ describe('delivery data', () => {
   })
 
   describe('findDeliveryMovementIds', () => {
+    const storeGroupings = (groupings) =>
+      createDeliveryRecords(
+        db,
+        client,
+        { orgId, traceId, payload: {} },
+        groupings.map((grouping) => ({
+          wasteType: 'NON_HAZARDOUS',
+          ...grouping
+        }))
+      )
+
     it('returns the movement ids delivered under the delivery id', async () => {
-      await deliveriesCollection.insertOne({
-        deliveryId: '25KMT4Z9',
-        movementIds: ['25HRA0B2', '25HRA0B3']
-      })
+      await storeGroupings([
+        { deliveryId: '25KMT4Z9', movementIds: ['25HRA0B2', '25HRA0B3'] }
+      ])
 
       const result = await findDeliveryMovementIds(db, '25KMT4Z9')
 
@@ -72,7 +88,7 @@ describe('delivery data', () => {
 
     it('combines and deduplicates every record with the delivery id', async () => {
       // A resubmitted hazardous movement stores a second record
-      await deliveriesCollection.insertMany([
+      await storeGroupings([
         { deliveryId: '25HRZ9X7', movementIds: ['25HRZ9X7'] },
         { deliveryId: '25HRZ9X7', movementIds: ['25HRZ9X7'] }
       ])
@@ -82,19 +98,12 @@ describe('delivery data', () => {
       expect(result).toEqual(['25HRZ9X7'])
     })
 
-    it('returns an empty list for a delivery with no movements', async () => {
-      await deliveriesCollection.insertOne({
+    it('returns an empty list for an undocumented receipt’s delivery', async () => {
+      await createUndocumentedDeliveryRecord(db, {
         deliveryId: '25KMT4Z9',
-        movementIds: []
+        orgId,
+        traceId
       })
-
-      const result = await findDeliveryMovementIds(db, '25KMT4Z9')
-
-      expect(result).toEqual([])
-    })
-
-    it('treats a record without movementIds as having none', async () => {
-      await deliveriesCollection.insertOne({ deliveryId: '25KMT4Z9' })
 
       const result = await findDeliveryMovementIds(db, '25KMT4Z9')
 
@@ -108,30 +117,28 @@ describe('delivery data', () => {
     })
   })
 
-  describe('createDeliveryRecord', () => {
-    it('should create a delivery in the db and return the deliveryId', async () => {
-      const deliveryId = '25KMT4Z9'
-      const now = new Date().toISOString()
-      const delivery = {
-        deliveryId,
-        movementIds: ['25HRA0B1'],
-        wasteType: 'NON_HAZARDOUS',
-        orgId: '57aed195-325e-45d5-b1fb-5f201e0324cf'
-      }
+  describe('createUndocumentedDeliveryRecord', () => {
+    it('stores an empty delivery, with no payload of its own', async () => {
+      const now = new Date()
 
-      const result = await createDeliveryRecord(db, delivery)
-
-      const recordInDb = await deliveriesCollection.findOne({ deliveryId })
-
-      expect(result).toEqual({
-        deliveryId,
-        movementIds: delivery.movementIds,
-        wasteType: delivery.wasteType
+      const result = await createUndocumentedDeliveryRecord(db, {
+        deliveryId: '25KMT4Z9',
+        orgId,
+        traceId
       })
-      expect(recordInDb).toEqual({
+
+      expect(result).toEqual({ deliveryId: '25KMT4Z9' })
+      expect(
+        await deliveriesCollection.findOne({ deliveryId: '25KMT4Z9' })
+      ).toEqual({
         _id: expect.any(Object),
+        orgId,
+        revision: 1,
         createdAt: now,
-        ...delivery
+        updatedAt: now,
+        traceId,
+        deliveryId: '25KMT4Z9',
+        movementIds: []
       })
     })
 
@@ -139,53 +146,57 @@ describe('delivery data', () => {
       const mockError = new Error('Database error')
 
       await expect(
-        createDeliveryRecord(failingDb(mockError), { deliveryId: '25KMT4Z9' })
+        createUndocumentedDeliveryRecord(failingDb(mockError), {
+          deliveryId: '25KMT4Z9',
+          orgId,
+          traceId
+        })
       ).rejects.toThrow(mockError.message)
     })
   })
 
   describe('createDeliveryRecords', () => {
-    const orgId = '57aed195-325e-45d5-b1fb-5f201e0324cf'
-    const deliveries = [
+    const payload = { movementIds: ['25HRA0B1', '25HRA0B2', '25HRA0B4'] }
+    const groupings = [
       {
         deliveryId: '25KMT4Z9',
         movementIds: ['25HRA0B1', '25HRA0B2'],
-        wasteType: 'NON_HAZARDOUS',
-        orgId
+        wasteType: 'NON_HAZARDOUS'
       },
       {
         deliveryId: '25HRA0B4',
         movementIds: ['25HRA0B4'],
-        wasteType: 'HAZARDOUS',
-        orgId
+        wasteType: 'HAZARDOUS'
       },
       {
         deliveryId: '25HRA0B3',
         movementIds: ['25HRA0B3'],
-        wasteType: 'HAZARDOUS',
-        orgId
+        wasteType: 'HAZARDOUS'
       }
     ]
+    const request = { orgId, traceId, payload }
 
-    it('inserts every delivery and returns them in input order', async () => {
-      const now = new Date().toISOString()
+    it('stores every delivery with the request, and returns them in input order', async () => {
+      const now = new Date()
 
-      const result = await createDeliveryRecords(db, client, deliveries)
+      const result = await createDeliveryRecords(db, client, request, groupings)
 
-      expect(result).toEqual(
-        deliveries.map(({ deliveryId, movementIds, wasteType }) => ({
-          deliveryId,
-          movementIds,
-          wasteType
-        }))
-      )
+      const expected = groupings.map((grouping) => ({
+        _id: expect.any(Object),
+        orgId,
+        revision: 1,
+        createdAt: now,
+        updatedAt: now,
+        traceId,
+        payload: expect.anything(),
+        ...grouping
+      }))
+      expect(result).toEqual(expected)
 
-      const recordsInDb = await deliveriesCollection
-        .find({}, { projection: { _id: 0 } })
-        .toArray()
-
-      expect(recordsInDb).toEqual(
-        deliveries.map((delivery) => ({ ...delivery, createdAt: now }))
+      const recordsInDb = await deliveriesCollection.find({}).toArray()
+      expect(recordsInDb).toEqual(expected)
+      expect(recordsInDb.map((record) => fromPayload(record.payload))).toEqual(
+        groupings.map(() => payload)
       )
     })
 
@@ -193,15 +204,21 @@ describe('delivery data', () => {
       // Rejects the second delivery, after the first has been written.
       const setValidator = (validator) =>
         db.command({ collMod: collectionName, validator })
+      const schemaValidator = { $jsonSchema: dataSchemas.delivery.schema }
 
       beforeEach(() =>
-        setValidator({ deliveryId: { $ne: deliveries[1].deliveryId } })
+        setValidator({
+          $and: [
+            schemaValidator,
+            { deliveryId: { $ne: groupings[1].deliveryId } }
+          ]
+        })
       )
-      afterEach(() => setValidator({}))
+      afterEach(() => setValidator(schemaValidator))
 
       it('writes none of the deliveries', async () => {
         await expect(
-          createDeliveryRecords(db, client, deliveries)
+          createDeliveryRecords(db, client, request, groupings)
         ).rejects.toThrow()
 
         expect(await deliveriesCollection.countDocuments()).toBe(0)
@@ -209,17 +226,17 @@ describe('delivery data', () => {
 
       it('leaves exactly one copy of each delivery once a retry succeeds', async () => {
         await expect(
-          createDeliveryRecords(db, client, deliveries)
+          createDeliveryRecords(db, client, request, groupings)
         ).rejects.toThrow()
-        await setValidator({})
+        await setValidator(schemaValidator)
 
-        await createDeliveryRecords(db, client, deliveries)
+        await createDeliveryRecords(db, client, request, groupings)
 
         const recordsInDb = await deliveriesCollection
           .find({}, { projection: { _id: 0, deliveryId: 1 } })
           .toArray()
         expect(recordsInDb).toEqual(
-          deliveries.map(({ deliveryId }) => ({ deliveryId }))
+          groupings.map(({ deliveryId }) => ({ deliveryId }))
         )
       })
     })
@@ -228,7 +245,7 @@ describe('delivery data', () => {
       const mockError = new Error('Database error')
 
       await expect(
-        createDeliveryRecords(failingDb(mockError), client, deliveries)
+        createDeliveryRecords(failingDb(mockError), client, request, groupings)
       ).rejects.toThrow(mockError.message)
     })
   })

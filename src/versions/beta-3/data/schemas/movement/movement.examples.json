@@ -2,26 +2,23 @@
   "household": {
     "summary": "A household Movement with no hazardous properties declared",
     "value": {
-      "_id": { "$oid": "6966b3a6c2f1a40b8e9d1a01" },
-      "movementId": "26HRA0B2",
+      "_id": "26HRA0B2",
       "orgId": "d829f66d-857f-401d-b5e9-5061b7dbb29d",
-      "wasteItems": [
-        {
-          "classification": {
-            "wasteDescription": "Mixed municipal waste",
-            "ewcCodes": ["200301"],
-            "pops": { "isPresent": false },
-            "hazardous": { "isPresent": false }
-          },
-          "physicalDetails": {
-            "form": "MIXED",
-            "containerType": "LOO",
-            "containerCount": 0,
-            "totalWeight": { "amount": 2, "unit": "TONNES", "isEstimate": true }
-          }
+      "revision": 1,
+      "createdAt": {
+        "$date": "2026-01-15T09:31:02Z"
+      },
+      "updatedAt": {
+        "$date": "2026-01-15T09:31:02Z"
+      },
+      "traceId": "a8f2c3e1-4b5d-4c6e-9f70-1a2b3c4d5e6f",
+      "payload": {
+        "$binary": {
+          "base64": "eyJwcm9kdWNlciI6eyJ3YXN0ZVNvdXJjZSI6IkhPVVNFSE9MRCJ9LCJjb2xsZWN0aW9uRGF0ZVRpbWUiOiIyMDI2LTAxLTE1VDA5OjMwOjAwWiIsImNvbGxlY3Rpb25TaXRlIjp7ImFkZHJlc3MiOnsiZnVsbEFkZHJlc3MiOiIxMCBJbmR1c3RyaWFsIFdheSwgVGVzdCBDaXR5IiwicG9zdGNvZGUiOiJURTEgMlBRIn0sImNvbnRhY3REZXRhaWxzIjp7ImVtYWlsQWRkcmVzcyI6InNpdGVAZXhhbXBsZS5jb20iLCJwaG9uZU51bWJlciI6IjAxMjM0NTY3ODkwIn19LCJpbnRlbmRlZENhcnJpZXJzIjpbeyJvcmdhbmlzYXRpb25OYW1lIjoiQ2FycmllciBEZW1vIEx0ZCIsInJlZ2lzdHJhdGlvbk51bWJlciI6IkNCRFUxMjM0NTYiLCJtZWFuc09mVHJhbnNwb3J0IjoiUk9BRCIsInZlaGljbGVSZWdpc3RyYXRpb24iOiJBQjEyIENERSIsImNvbnRhY3REZXRhaWxzIjp7ImVtYWlsQWRkcmVzcyI6ImNhcnJpZXJAZXhhbXBsZS5jb20iLCJwaG9uZU51bWJlciI6IjAxMjM0NTY3ODkwIn0sImFkZHJlc3MiOnsiZnVsbEFkZHJlc3MiOiI0IENhcnJpZXIgTGFuZSwgVGVzdCBDaXR5IiwicG9zdGNvZGUiOiJURTEgNENSIn19XSwiaW50ZW5kZWRSZWNlaXZlcnMiOlt7InNpdGVOYW1lIjoiUmVjZWl2ZXIgU2l0ZSBMdGQiLCJhdXRob3Jpc2F0aW9uTnVtYmVyIjoiRUFTL1AvMTIzNDU2IiwicmVjZWlwdEFkZHJlc3MiOnsiZnVsbEFkZHJlc3MiOiIzIFJlY2VpdmVyIFJvYWQsIFRlc3QgQ2l0eSIsInBvc3Rjb2RlIjoiVEUxIDNSQyJ9LCJjb250YWN0RGV0YWlscyI6eyJlbWFpbEFkZHJlc3MiOiJyZWNlaXZlckBleGFtcGxlLmNvbSIsInBob25lTnVtYmVyIjoiMDEyMzQ1Njc4OTAifX1dLCJ3YXN0ZUl0ZW1zIjpbeyJjbGFzc2lmaWNhdGlvbiI6eyJ3YXN0ZURlc2NyaXB0aW9uIjoiTWl4ZWQgbXVuaWNpcGFsIHdhc3RlIiwiZXdjQ29kZXMiOlsiMjAwMzAxIl0sInBvcHMiOnsiaXNQcmVzZW50IjpmYWxzZX0sImhhemFyZG91cyI6eyJpc1ByZXNlbnQiOmZhbHNlfX0sInBoeXNpY2FsRGV0YWlscyI6eyJmb3JtIjoiTUlYRUQiLCJjb250YWluZXJUeXBlIjoiTE9PIiwiY29udGFpbmVyQ291bnQiOjAsInRvdGFsV2VpZ2h0Ijp7ImFtb3VudCI6MiwidW5pdCI6IlRPTk5FUyIsImlzRXN0aW1hdGUiOnRydWV9fX1dfQ==",
+          "subType": "00"
         }
-      ],
-      "createdAt": "2026-01-15T09:31:02.000Z"
+      },
+      "isHazardous": false
     }
   }
 }

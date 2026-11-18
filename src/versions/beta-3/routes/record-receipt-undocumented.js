@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { HTTP_STATUS, backoffOptions } from '@defra/waste-movement-utils'
 import { getTraceId } from '@defra/hapi-tracing'
 import { backOff } from 'exponential-backoff'
+import { withTransaction } from '#/common/data/with-transaction.js'
 import { createDeliveryId } from '#/common/http/waste-tracking.js'
 import { getOrganisationId } from '#/common/organisation.js'
 import { handleBetaRouteError } from '#/common/route-errors.js'
@@ -11,6 +12,7 @@ import {
   notInFuture
 } from '#/common/validation/date-time-checks.js'
 import { wasteReferenceDataChecks } from '../checks/waste-reference-data-checks.js'
+import { toResponse } from '../data/mappers/receipt.js'
 
 const receiptDateTime = ['receiptDateTime']
 
@@ -48,12 +50,21 @@ export const recordReceiptUndocumented = (version) => ({
       const orgId = getOrganisationId(request)
       const deliveryId = await createDeliveryId()
 
-      await backOff(
+      // The empty Delivery and its Receipt are written together or not at
+      // all, so a retry never leaves a Delivery without its Receipt.
+      const receipt = await backOff(
         () =>
-          version.deliveries.createDeliveryRecord(request.db, {
-            deliveryId,
-            movementIds: [],
-            orgId
+          withTransaction(request.mongoClient, async (session) => {
+            await version.deliveries.createUndocumentedDeliveryRecord(
+              request.db,
+              { deliveryId, orgId, traceId },
+              { session }
+            )
+            return version.receipts.createReceiptRecord(
+              request.db,
+              { deliveryId, orgId, traceId, payload: request.payload },
+              { session }
+            )
           }),
         backoffOptions(version.logger)
       )
@@ -65,7 +76,7 @@ export const recordReceiptUndocumented = (version) => ({
       request.app.journey = [{ deliveryId }]
 
       return h
-        .response({ data: { deliveryId }, validation: { warnings: [] } })
+        .response(toResponse(receipt))
         .code(HTTP_STATUS.CREATED)
         .header('x-request-id', traceId)
         .message('Successfully recorded an undocumented receipt')

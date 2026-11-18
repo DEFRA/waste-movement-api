@@ -24,6 +24,7 @@ import {
   wasteItem
 } from '../schemas/test-helpers.js'
 import { createDeliveryId } from '#/common/http/waste-tracking.js'
+import { fromPayload } from '#/common/data/payload.js'
 import { collectionName, version } from '../index.js'
 
 const { apiVersion } = version
@@ -82,10 +83,10 @@ const test = routeTest.extend({
     )
   },
 
-  // How many receipts (deliveries) are stored
+  // How many receipts are stored
   storedReceipts: async ({ server }, use) => {
     await use(() =>
-      server.db.collection(collectionName('deliveries')).countDocuments()
+      server.db.collection(collectionName('receipts')).countDocuments()
     )
   },
 
@@ -115,6 +116,7 @@ const test = routeTest.extend({
 describe(`POST /${apiVersion}/receipts`, () => {
   test.beforeEach(async ({ server }) => {
     await server.db.collection(collectionName('deliveries')).deleteMany({})
+    await server.db.collection(collectionName('receipts')).deleteMany({})
   })
 
   test('mints an empty delivery, acknowledges receipt against it and returns 201 with the envelope shape', async ({
@@ -148,6 +150,25 @@ describe(`POST /${apiVersion}/receipts`, () => {
       deliveryId: '25KMT4Z9',
       movementIds: [],
       orgId: forwardedOrganisationId
+    })
+    expect(deliveryInDb).not.toHaveProperty('payload')
+
+    const receiptInDb = await server.db
+      .collection(collectionName('receipts'))
+      .findOne({ deliveryId: '25KMT4Z9' })
+
+    expect(receiptInDb).toMatchObject({
+      deliveryId: '25KMT4Z9',
+      orgId: forwardedOrganisationId,
+      revision: 1,
+      traceId
+    })
+    expect(fromPayload(receiptInDb.payload)).toEqual({
+      receiptDateTime,
+      reasonForNoDeliveryId,
+      carrier,
+      receiver,
+      wasteItems
     })
   })
 
@@ -496,7 +517,7 @@ describe(`POST /${apiVersion}/receipts`, () => {
     server
   }) => {
     const error = 'Database connection failed'
-    vi.spyOn(delivery, 'createDeliveryRecord').mockRejectedValue(
+    vi.spyOn(delivery, 'createUndocumentedDeliveryRecord').mockRejectedValue(
       new Error(error)
     )
 
@@ -520,6 +541,34 @@ describe(`POST /${apiVersion}/receipts`, () => {
       type: `${expectedTypeBase}internal-server-error`,
       requestId: traceId
     })
+  })
+
+  test('stores neither the delivery nor the receipt when persisting the receipt fails', async ({
+    server,
+    storedReceipts
+  }) => {
+    vi.spyOn(version.receipts, 'createReceiptRecord').mockRejectedValue(
+      new Error('Database connection failed')
+    )
+
+    const { statusCode } = await server.inject({
+      method: 'POST',
+      url,
+      payload: {
+        receiptDateTime,
+        reasonForNoDeliveryId,
+        carrier,
+        receiver,
+        wasteItems
+      },
+      headers: tracedAuthHeaders
+    })
+
+    expect(statusCode).toEqual(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    expect(
+      await server.db.collection(collectionName('deliveries')).countDocuments()
+    ).toBe(0)
+    expect(await storedReceipts()).toBe(0)
   })
 
   test('returns 401 when unauthenticated', async ({ server }) => {
@@ -550,8 +599,14 @@ describe(`POST /${apiVersion}/receipts`, () => {
     server
   }) => {
     vi.mocked(createDeliveryId).mockResolvedValueOnce(42)
-    // Stubbed so the bad id isn't rejected by the deliveries collection first.
-    vi.spyOn(delivery, 'createDeliveryRecord').mockResolvedValueOnce({})
+    // Stubbed so the bad id isn't rejected by the DB schemas first.
+    vi.spyOn(
+      delivery,
+      'createUndocumentedDeliveryRecord'
+    ).mockResolvedValueOnce({})
+    vi.spyOn(version.receipts, 'createReceiptRecord').mockResolvedValueOnce({
+      deliveryId: 42
+    })
 
     const { statusCode, result } = await server.inject({
       method: 'POST',

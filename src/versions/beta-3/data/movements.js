@@ -1,58 +1,50 @@
 import { createLogger } from '#/common/helpers/logging/logger.js'
+import { toDocument } from './mappers/movement.js'
 
 const logger = createLogger()
 
 /**
  * The movement data access for one collection, e.g. `beta-3-g1-movements`.
+ * A Movement is stored once: its Movement ID is the document's `_id`.
  *
- * @param {string} collectionName
+ * @param {ReturnType<typeof import('#/common/data/entity-store.js').entityStore>} store
  */
-export const movementData = (collectionName) => ({
+export const movementData = (store) => ({
   /**
-   * A Movement is stored once: a unique index on `movementId`.
+   * At boot: the collection's validator and indexes (see syncCollection).
    *
    * @param {import('mongodb').Db} db
    */
-  createIndexes: async (db) => {
-    await db
-      .collection(collectionName)
-      .createIndex({ movementId: 1 }, { unique: true })
-  },
+  sync: (db) => store.sync(db),
 
   /**
    * Looks up a movement record by its movement ID.
    *
    * @param {import('mongodb').Db} db
    * @param {string} movementId
-   * @returns {Promise<{ movementId: string, orgId: string, wasteItems: object[], createdAt: string } | null>}
+   * @returns {Promise<object | null>} the stored document
    */
-  getMovementRecord: async (db, movementId) => {
-    const movementsCollection = db.collection(collectionName)
-    return movementsCollection.findOne({ movementId })
-  },
+  getMovementRecord: async (db, movementId) =>
+    db.collection(store.collectionName).findOne({ _id: movementId }),
 
   /**
    * Looks up the given movement IDs and returns the subset that exist, with
-   * only their waste items' classifications, which is all a delivery needs.
+   * only whether each is hazardous, which is all a delivery needs.
    *
    * @param {import('mongodb').Db} db
    * @param {string[]} movementIds
-   * @returns {Promise<{ movementId: string, wasteItems?: { classification: object }[] }[]>}
+   * @returns {Promise<{ movementId: string, isHazardous: boolean }[]>}
    */
   findMovements: async (db, movementIds) => {
-    const movementsCollection = db.collection(collectionName)
-    return movementsCollection
-      .find(
-        { movementId: { $in: movementIds } },
-        {
-          projection: {
-            _id: 0,
-            movementId: 1,
-            'wasteItems.classification': 1
-          }
-        }
-      )
+    const found = await db
+      .collection(store.collectionName)
+      .find({ _id: { $in: movementIds } }, { projection: { isHazardous: 1 } })
       .toArray()
+
+    return found.map(({ _id, isHazardous }) => ({
+      movementId: _id,
+      isHazardous
+    }))
   },
 
   /**
@@ -60,21 +52,19 @@ export const movementData = (collectionName) => ({
    * duplicate key error.
    *
    * @param {import('mongodb').Db} db
-   * @param {{ movementId: string, orgId: string, wasteItems: object[] }} movement
+   * @param {{ movementId: string, orgId: string, traceId: string, payload: object }} movement -
+   * `payload` is the `POST /movements` request body
    * @returns {Promise<{ movementId: string }>}
    */
-  createMovementRecord: async (db, movement) => {
+  createMovementRecord: async (db, { movementId, orgId, traceId, payload }) => {
     try {
-      const extendedMovement = {
-        ...movement,
-        createdAt: new Date().toISOString()
-      }
+      const document = store.newDocument(
+        { _id: movementId, orgId, traceId },
+        toDocument(payload)
+      )
+      await store.insertOne(db, document)
 
-      await db
-        .collection(collectionName)
-        .insertOne(structuredClone(extendedMovement))
-
-      return { movementId: extendedMovement.movementId }
+      return { movementId }
     } catch (error) {
       logger.error({ error }, 'Failed to create movement')
       throw error

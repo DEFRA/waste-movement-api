@@ -7,6 +7,7 @@ import { getOrganisationId } from '#/common/organisation.js'
 import { handleBetaRouteError } from '#/common/route-errors.js'
 import { withPayloadChecks } from '#/common/validation/payload-checks.js'
 import { wasteReferenceDataChecks } from '../checks/waste-reference-data-checks.js'
+import { toResponse } from '../data/mappers/movement.js'
 
 export const createMovement = (version) => ({
   method: 'POST',
@@ -40,14 +41,12 @@ export const createMovement = (version) => ({
           version.movements.createMovementRecord(request.db, {
             movementId,
             orgId,
-            wasteItems: request.payload.wasteItems
+            traceId,
+            payload: request.payload
           }),
         { movementId }
       )
-      const responseBody = {
-        data: { movementId },
-        validation: { warnings: [] }
-      }
+      const responseBody = toResponse({ _id: movementId })
 
       version.logger.info(
         { movementId },

@@ -15,7 +15,9 @@ import {
   wasteItem
 } from '../schemas/test-helpers.js'
 import { createDeliveryId } from '#/common/http/waste-tracking.js'
+import { fromPayload } from '#/common/data/payload.js'
 import { collectionName, version } from '../index.js'
+import { storeMovements } from '../data/test-helpers.js'
 
 const { apiVersion } = version
 
@@ -59,26 +61,29 @@ const expectedTypeBase =
 const test = routeTest.extend({
   // Stores movements with non-hazardous and hazardous waste items
   seedMovements: async ({ server }, use) => {
-    await use((nonHazardousIds, hazardousIds) =>
-      server.db.collection(collectionName('movements')).insertMany([
-        ...nonHazardousIds.map((movementId) => ({
-          movementId,
-          wasteItems: [wasteItem]
-        })),
-        ...hazardousIds.map((movementId) => ({
-          movementId,
-          wasteItems: [hazardousWasteItem]
-        }))
-      ])
-    )
+    await use(async (nonHazardousIds, hazardousIds) => {
+      await storeMovements(server.db, nonHazardousIds, [wasteItem])
+      await storeMovements(server.db, hazardousIds, [hazardousWasteItem])
+    })
   },
 
-  // The stored deliveries, without their generated fields
+  // The stored deliveries' grouping and organisation
   findDeliveries: async ({ server }, use) => {
     await use(() =>
       server.db
         .collection(collectionName('deliveries'))
-        .find({}, { projection: { _id: 0, createdAt: 0 } })
+        .find(
+          {},
+          {
+            projection: {
+              _id: 0,
+              deliveryId: 1,
+              movementIds: 1,
+              wasteType: 1,
+              orgId: 1
+            }
+          }
+        )
         .toArray()
     )
   },
@@ -105,9 +110,7 @@ describe(`POST /${apiVersion}/deliveries`, () => {
   test('records a delivery and returns 201 with the envelope shape', async ({
     server
   }) => {
-    await server.db
-      .collection(collectionName('movements'))
-      .insertMany([{ movementId: movementId1 }, { movementId: movementId2 }])
+    await storeMovements(server.db, [movementId1, movementId2])
 
     const { statusCode, result, headers } = await server.inject({
       method: 'POST',
@@ -142,16 +145,20 @@ describe(`POST /${apiVersion}/deliveries`, () => {
       deliveryId: '25KMT4Z9',
       movementIds: [movementId1, movementId2],
       wasteType: 'NON_HAZARDOUS',
-      orgId: forwardedOrganisationId
+      orgId: forwardedOrganisationId,
+      revision: 1,
+      traceId
+    })
+    expect(fromPayload(recordInDb.payload)).toEqual({
+      movementIds: [movementId1, movementId2],
+      ...deliveryDetails
     })
   })
 
   test('records a delivery when supportingReferences are provided', async ({
     server
   }) => {
-    await server.db
-      .collection(collectionName('movements'))
-      .insertOne({ movementId: movementId1 })
+    await storeMovements(server.db, [movementId1])
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
@@ -193,9 +200,7 @@ describe(`POST /${apiVersion}/deliveries`, () => {
   test('echoes the inbound x-cdp-request-id as x-request-id', async ({
     server
   }) => {
-    await server.db
-      .collection(collectionName('movements'))
-      .insertOne({ movementId: movementId1 })
+    await storeMovements(server.db, [movementId1])
 
     const { headers } = await server.inject({
       method: 'POST',
@@ -287,9 +292,7 @@ describe(`POST /${apiVersion}/deliveries`, () => {
     }
 
     test.beforeEach(async ({ server }) => {
-      await server.db
-        .collection(collectionName('movements'))
-        .insertOne({ movementId: movementId1 })
+      await storeMovements(server.db, [movementId1])
     })
 
     test.for([
@@ -514,9 +517,7 @@ describe(`POST /${apiVersion}/deliveries`, () => {
   })
 
   test('returns a 400 when a movementId does not exist', async ({ server }) => {
-    await server.db
-      .collection(collectionName('movements'))
-      .insertOne({ movementId: movementId1 })
+    await storeMovements(server.db, [movementId1])
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
@@ -539,9 +540,7 @@ describe(`POST /${apiVersion}/deliveries`, () => {
   })
 
   test('returns a 500 when persistence fails', async ({ server }) => {
-    await server.db
-      .collection(collectionName('movements'))
-      .insertOne({ movementId: movementId1 })
+    await storeMovements(server.db, [movementId1])
 
     vi.spyOn(delivery, 'createDeliveryRecords').mockRejectedValue(
       new Error('Database connection failed')
@@ -584,9 +583,7 @@ describe(`POST /${apiVersion}/deliveries`, () => {
   test('returns a 500 when the response body does not match the response schema', async ({
     server
   }) => {
-    await server.db
-      .collection(collectionName('movements'))
-      .insertOne({ movementId: movementId1 })
+    await storeMovements(server.db, [movementId1])
     // Stubbed so the bad id isn't rejected by the deliveries collection first.
     vi.spyOn(delivery, 'createDeliveryRecords').mockResolvedValueOnce([
       {
@@ -707,10 +704,11 @@ describe(`POST /${apiVersion}/deliveries`, () => {
       seedMovements
     }) => {
       await seedMovements(['261B23B4'], [])
-      await server.db.collection(collectionName('movements')).insertOne({
-        movementId: '269X8Y7Z',
-        wasteItems: [wasteItem, hazardousWasteItem]
-      })
+      await storeMovements(
+        server.db,
+        ['269X8Y7Z'],
+        [wasteItem, hazardousWasteItem]
+      )
 
       const { statusCode, result } = await server.inject({
         method: 'POST',
@@ -739,12 +737,11 @@ describe(`POST /${apiVersion}/deliveries`, () => {
         deliver
       }) => {
         await seedMovements(['261B23B4'], [])
-        await server.db.collection(collectionName('movements')).insertOne({
-          movementId: '269X8Y7Z',
-          wasteItems: [
-            withDeclaration(wasteItem, { isPresent: true, codes: ['HP_4'] })
-          ]
-        })
+        await storeMovements(
+          server.db,
+          ['269X8Y7Z'],
+          [withDeclaration(wasteItem, { isPresent: true, codes: ['HP_4'] })]
+        )
 
         const { statusCode, result } = await deliver(['261B23B4', '269X8Y7Z'])
 
@@ -761,12 +758,11 @@ describe(`POST /${apiVersion}/deliveries`, () => {
         deliver
       }) => {
         await seedMovements(['261B23B4'], [])
-        await server.db.collection(collectionName('movements')).insertOne({
-          movementId: '262C34C5',
-          wasteItems: [
-            withDeclaration(hazardousWasteItem, { isPresent: false })
-          ]
-        })
+        await storeMovements(
+          server.db,
+          ['262C34C5'],
+          [withDeclaration(hazardousWasteItem, { isPresent: false })]
+        )
 
         const { statusCode, result } = await deliver(['261B23B4', '262C34C5'])
 
@@ -777,15 +773,12 @@ describe(`POST /${apiVersion}/deliveries`, () => {
       })
     })
 
-    // Movements created before waste items were stored have no wasteItems.
-    test('aggregates a movement stored without waste items as non-hazardous', async ({
+    test('aggregates a movement with no waste items as non-hazardous', async ({
       server,
       seedMovements
     }) => {
       await seedMovements([], ['269X8Y7Z'])
-      await server.db
-        .collection(collectionName('movements'))
-        .insertOne({ movementId: '261B23B4' })
+      await storeMovements(server.db, ['261B23B4'], [])
 
       const { statusCode, result } = await server.inject({
         method: 'POST',

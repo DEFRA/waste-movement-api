@@ -25,9 +25,10 @@ version at once is what we want.
 
 ## Data generations, reset by hand
 
-Each version stores data in its own collections, `<version>-g<DATA_GENERATION>-<name>`. When the
-stored shape changes incompatibly, a developer bumps `DATA_GENERATION`; on boot the service drops
-that version's collections for every other generation. There is no migration. (Renamed from "data
-revision", so it can't be confused with a per-document revision.)
+Each version stores data in its own collections, `<version>-g<DATA_GENERATION>-<name>`. When a DB
+schema changes incompatibly, a developer bumps `DATA_GENERATION`, and CI fails a breaking schema
+change made without one; on boot the service drops that version's collections for every other
+generation. There is no migration. (Renamed from "data revision", so it can't be confused with a
+document's `revision`, its ETag.)
 
 **Why:** beta data is disposable, so a reset is enough, and a manual bump is simple and explicit.

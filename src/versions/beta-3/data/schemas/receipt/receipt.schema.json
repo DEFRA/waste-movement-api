@@ -1,0 +1,43 @@
+{
+  "title": "Receipt",
+  "description": "A Receipt, as stored in `beta-3-g<N>-receipts` for `POST /deliveries/{deliveryId}/receipt`, or for `POST /receipts` against the empty Delivery it creates.",
+  "bsonType": "object",
+  "additionalProperties": false,
+  "required": [
+    "_id",
+    "orgId",
+    "revision",
+    "createdAt",
+    "updatedAt",
+    "traceId",
+    "payload",
+    "deliveryId"
+  ],
+  "properties": {
+    "_id": {
+      "bsonType": "objectId",
+      "description": "Generated: a Delivery can have its Receipt recorded more than once."
+    },
+    "orgId": { "$ref": "../common/envelope.schema.json#/properties/orgId" },
+    "revision": {
+      "$ref": "../common/envelope.schema.json#/properties/revision"
+    },
+    "createdAt": {
+      "$ref": "../common/envelope.schema.json#/properties/createdAt"
+    },
+    "updatedAt": {
+      "$ref": "../common/envelope.schema.json#/properties/updatedAt"
+    },
+    "traceId": {
+      "$ref": "../common/envelope.schema.json#/properties/traceId"
+    },
+    "payload": {
+      "$ref": "../common/envelope.schema.json#/properties/payload",
+      "description": "The `POST /deliveries/{deliveryId}/receipt` or `POST /receipts` request body, as sent."
+    },
+    "deliveryId": {
+      "bsonType": "string",
+      "description": "The Delivery received."
+    }
+  }
+}
