@@ -1,6 +1,22 @@
 # Proposal: database layer for beta-3
 
-**Status:** draft for review · **Service:** waste-movement-api · **Date:** 2026-11-17
+**Status:** partly implemented · **Service:** waste-movement-api · **Date:** 2026-11-17
+
+## Progress
+
+| Part                                        | State                                                                                                                                                                                                                                          |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Naming: `DATA_REVISION` → `DATA_GENERATION` | **Done** on `main` (#7).                                                                                                                                                                                                                       |
+| 1. One collection per entity                | **Done** (DWTC-317): movements, collections, deliveries, receipts. Only a movement's `_id` is its natural ID; the others have a generated `_id` and an index on their linking ID, to keep today's resubmission behaviour (open questions 2–3). |
+| 1. History collections and updates          | **Deferred**: there are no update routes yet. [Backlog](../backlog/updates-and-history-collections.md).                                                                                                                                        |
+| 2. ETag                                     | **Partly**: every document carries `revision: 1`. The HTTP side (`ETag`, `If-Match`, 412) is [in the backlog](../backlog/etag-if-match-http.md).                                                                                               |
+| 3. Payload + business fields                | **Done** (DWTC-317). Responses hold only IDs today; `POST /deliveries`' is built from the stored groupings, as it's derived, not sent.                                                                                                         |
+| 4. Mappers                                  | **Done** (DWTC-317): `data/mappers/`, with every API example run through API → DB → API in `schemas.test.js`.                                                                                                                                  |
+| 5. DB schema files                          | **Done** on `main` (#8), then moved to the envelope shape (DWTC-317, `DATA_GENERATION` 2), with `openapi.json` to browse them.                                                                                                                 |
+| 5. ajv, `$jsonSchema` validator, index sync | **Done** (DWTC-317): `entityStore`, `syncCollection`.                                                                                                                                                                                          |
+| 6. Changing a DB schema                     | **Done** (DWTC-317). Removing an enum value also counts as breaking.                                                                                                                                                                           |
+| 7. CI check and refusing to start           | **Done** (DWTC-317): `npm run check:data-schemas`, in `check-pull-request.yml`; boot fails on mismatched documents or a validator it can't update.                                                                                             |
+| 8. Outbox                                   | Not started, as planned.                                                                                                                                                                                                                       |
 
 ## Why
 
@@ -163,10 +179,10 @@ We're not building the audit outbox to GIO now, but the design allows for it:
 ## Open questions
 
 1. Does our Mongo user on CDP have the `dbAdmin` role? It's needed to update a validator in place. Without
-   it, every schema change needs a `DATA_GENERATION` bump.
+   it, every schema change needs a `DATA_GENERATION` bump. _Open: [backlog](../backlog/cdp-mongo-dbadmin-role.md)._
 2. What identifies a collection and a receipt (`movementId`? `deliveryId`?), and is a second submission an
-   update or a 409?
+   update or a 409? _Open: [backlog](../backlog/collection-receipt-identity.md)._
 3. A resubmitted hazardous movement currently creates a duplicate delivery. Should it become an update or a
-   409?
+   409? _Open: [backlog](../backlog/hazardous-resubmission-duplicate-delivery.md)._
 4. How should the future outbox survive a `DATA_GENERATION` reset without losing unsent audit messages?
 5. Does this address the concerns raised about the ROW approach in the Equal Experts Slack thread?
