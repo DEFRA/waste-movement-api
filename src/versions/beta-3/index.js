@@ -1,7 +1,7 @@
-import {
-  sweepStaleGenerations,
-  versionedCollections
-} from '#/common/data/versioned-collections.js'
+import path from 'node:path'
+import { loadDataSchemas } from '#/common/data/data-schemas.js'
+import { syncDataSchemas } from '#/common/data/sync-data-schemas.js'
+import { versionedCollections } from '#/common/data/versioned-collections.js'
 import { createLogger } from '#/common/helpers/logging/logger.js'
 import { DATA_GENERATION } from './data/generation.js'
 import { deliveryData } from './data/deliveries.js'
@@ -15,8 +15,13 @@ import { validators } from './schemas/validators.js'
 
 const apiVersion = 'beta-3'
 // Names this version's collections, e.g. collectionName('movements') is
-// `beta-3-g1-movements`.
+// `beta-3-g2-movements`.
 export const collectionName = versionedCollections(apiVersion, DATA_GENERATION)
+
+// The stored shape of each entity: see data/schemas/README.md
+export const dataSchemas = loadDataSchemas(
+  path.join(import.meta.dirname, 'data', 'schemas')
+)
 
 /**
  * Everything the routes need from this version. Its data access objects are
@@ -26,8 +31,8 @@ export const version = {
   apiVersion,
   logger: createLogger({ apiVersion }),
   validators,
-  movements: movementData(collectionName('movements')),
-  deliveries: deliveryData(collectionName('deliveries'))
+  movements: movementData(collectionName('movements'), dataSchemas.movement),
+  deliveries: deliveryData(collectionName('deliveries'), dataSchemas.delivery)
 }
 
 const routes = [
@@ -47,9 +52,13 @@ export const beta3 = {
     name: apiVersion,
     dependencies: ['mongodb'],
     register: async (server) => {
-      await sweepStaleGenerations(server.db, apiVersion, DATA_GENERATION)
-      await version.movements.createIndexes(server.db)
-      await version.deliveries.createIndexes(server.db)
+      // Here for now, in every instance; meant to move to its own process,
+      // run once per deploy, leaving only a read-only check here.
+      await syncDataSchemas(
+        server.db,
+        [version.movements, version.deliveries],
+        version.logger
+      )
 
       server.route(routes.map((route) => route(version)))
     }

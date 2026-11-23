@@ -1,0 +1,11 @@
+{
+  "title": "Widget",
+  "description": "A fixture entity.",
+  "bsonType": "object",
+  "additionalProperties": false,
+  "required": ["_id", "name"],
+  "properties": {
+    "_id": { "bsonType": "objectId", "description": "Generated." },
+    "name": { "bsonType": "string", "description": "A name." }
+  }
+}

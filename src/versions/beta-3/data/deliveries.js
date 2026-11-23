@@ -4,20 +4,18 @@ const logger = createLogger()
 
 /**
  * The delivery data access for one collection, e.g. `beta-3-g1-deliveries`.
+ * Its schema and indexes are in schemas/delivery/: syncDataSchemas creates
+ * the collection with them, so its validator rejects a document of the wrong
+ * shape. Deliveries are looked up by `deliveryId`, which isn't unique: a
+ * resubmitted hazardous Movement has a record per submission, all with its
+ * Movement ID as their Delivery ID (see createDeliveryRecords).
  *
  * @param {string} collectionName
+ * @param {import('#/common/data/data-schemas.js').DataSchema} dataSchema
  */
-export const deliveryData = (collectionName) => ({
-  /**
-   * Deliveries are looked up by `deliveryId`, which isn't unique: a
-   * resubmitted hazardous Movement has a record per submission, all with its
-   * Movement ID as their Delivery ID (see createDeliveryRecords).
-   *
-   * @param {import('mongodb').Db} db
-   */
-  createIndexes: async (db) => {
-    await db.collection(collectionName).createIndex({ deliveryId: 1 })
-  },
+export const deliveryData = (collectionName, dataSchema) => ({
+  collectionName,
+  dataSchema,
 
   /**
    * Finds the Movement IDs delivered under the given delivery id. Reads

@@ -96,8 +96,10 @@ src/
                        ajv errors mapped to the 400's errors[], withPayloadChecks, and the
                        generic date-time checks (emptyIsNotProvided, notInFuture)
     http/              waste-tracking-id-backend client: createMovementId, createDeliveryId
-    data/              versionedCollections, sweepStaleGenerations, isDuplicateKeyError,
-                       insertWithRetry (a duplicate key on a retry counts as success)
+    data/              versionedCollections, loadDataSchemas, syncDataSchemas (collections
+                       created from, and checked against, their DB schemas at boot),
+                       isDuplicateKeyError, insertWithRetry (a duplicate key on a retry counts
+                       as success)
     openapi/           bundle(specPath): an OpenAPI document with every $ref resolved
     organisation.js    getOrganisationId, from the x-dwt-organisation-id header
     route-errors.js    handleBetaRouteError
@@ -105,11 +107,12 @@ src/
     router.js          GET /health, and one register() per version
     journey-logger.js  logs each journey step against its Movement and Delivery IDs
   versions/beta-3/
-    index.js           the version's plugin: its routes, indexes and stale-data sweep
+    index.js           the version's plugin: its routes and DB schemas, synced at boot
     routes/            one file per endpoint, each a function of the version (index.js)
     schemas/           JSON Schemas, examples, openapi.json and the conventions they follow
     checks/            this version's payload checks: rules a schema can't express
-    data/              DATA_GENERATION, and movement and delivery data access
+    data/              DATA_GENERATION, movement and delivery data access, and the DB
+                       schemas (data/schemas/) of what's stored
     tests/             its integration tests, over real HTTP (unit tests sit beside their code)
 ```
 
@@ -136,21 +139,21 @@ collections (`<version>-g<N>-*`) are left in MongoDB; drop them by hand once not
 ### Stored data and DATA_GENERATION
 
 Each version stores its data in its own collections, named `<version>-g<DATA_GENERATION>-<name>`,
-e.g. `beta-3-g1-movements` and `beta-3-g1-deliveries`.
+e.g. `beta-3-g2-movements` and `beta-3-g2-deliveries`. What each holds is specified in the version's
+`data/schemas/`, and enforced: each collection has its schema as a MongoDB validator.
 
-**Bump `DATA_GENERATION`** (in the version's `data/generation.js`) when a change means the code can
-no longer read what's already stored, e.g. a stored field is renamed, moved or changes type. Adding a
-field the code treats as optional doesn't need a bump. There is no migration: on its next boot the
-service starts on new, empty collections and drops that version's collections for every other
-generation (and any still named by the older `-r<N>-` "data revision" scheme). Beta data is
-disposable, so this is the reset.
+**Bump `DATA_GENERATION`** (in the version's `data/generation.js`) for any change to a DB schema
+other than to a `title` or `description`, even a new optional field, and any change to its indexes.
+Until you do, the service refuses to start, saying which collection differs. There is no
+migration: on its next boot the service starts on new, empty collections, and the old generation's
+are left behind; drop them by hand once nothing needs them. Beta data is disposable, so this is the
+reset.
 
-Note that every instance sweeps on boot. While a deploy that bumps the generation rolls out, old
-instances keep writing to the old generation's collections, which a new instance may already have
-dropped; and an old instance that restarts mid-rollout would drop the new generation's. Bump it only
-where losing data written during the rollout is acceptable.
+Rolling back across a bump goes back to the older generation's data. In a shared environment, two
+branches that bump to the same generation with different schemas clash: the second refuses to
+start. Drop that generation's collections there by hand.
 
-Indexes are created on boot: `movementId` is unique; `deliveryId` isn't, since a resubmitted
+`movementId` is unique; `deliveryId` isn't, since a resubmitted
 hazardous Movement has a delivery record per submission. Creating a movement retries a failed
 write, and a retry that finds its `movementId` already stored counts as success (the earlier attempt
 landed, but its acknowledgement was lost). The first attempt finding it stored means the ID was
