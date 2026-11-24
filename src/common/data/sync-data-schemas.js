@@ -1,7 +1,7 @@
 // Makes an API version's collections match its DB schemas: creates the
 // missing ones, and refuses to start when an existing one differs. It reads
 // only collection metadata, never documents, so it takes the same time however
-// much is stored. Knows nothing of Hapi, so it can run from its own process.
+// much is stored.
 import { isDeepStrictEqual } from 'node:util'
 
 // MongoDB's code for creating a collection that exists, e.g. another instance

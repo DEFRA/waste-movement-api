@@ -52,8 +52,7 @@ export const beta3 = {
     name: apiVersion,
     dependencies: ['mongodb'],
     register: async (server) => {
-      // Here for now, in every instance; meant to move to its own process,
-      // run once per deploy, leaving only a read-only check here.
+      // In every instance: safe to run from several at once
       await syncDataSchemas(
         server.db,
         [version.movements, version.deliveries],
