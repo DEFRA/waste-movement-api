@@ -15,6 +15,7 @@ import {
   wasteItem
 } from '../schemas/test-helpers.js'
 import { createDeliveryId } from '#/common/http/waste-tracking.js'
+import { storeMovements } from '../data/test-helpers.js'
 import { collectionName, version } from '../index.js'
 
 const { apiVersion } = version
@@ -60,15 +61,11 @@ const test = routeTest.extend({
   // Stores movements with non-hazardous and hazardous waste items
   seedMovements: async ({ server }, use) => {
     await use((nonHazardousIds, hazardousIds) =>
-      server.db.collection(collectionName('movements')).insertMany([
-        ...nonHazardousIds.map((movementId) => ({
-          movementId,
-          wasteItems: [wasteItem]
-        })),
-        ...hazardousIds.map((movementId) => ({
-          movementId,
+      Promise.all([
+        storeMovements(server.db, nonHazardousIds),
+        storeMovements(server.db, hazardousIds, {
           wasteItems: [hazardousWasteItem]
-        }))
+        })
       ])
     )
   },
@@ -105,9 +102,7 @@ describe(`POST /${apiVersion}/deliveries`, () => {
   test('records a delivery and returns 201 with the envelope shape', async ({
     server
   }) => {
-    await server.db
-      .collection(collectionName('movements'))
-      .insertMany([{ movementId: movementId1 }, { movementId: movementId2 }])
+    await storeMovements(server.db, [movementId1, movementId2])
 
     const { statusCode, result, headers } = await server.inject({
       method: 'POST',
@@ -149,9 +144,7 @@ describe(`POST /${apiVersion}/deliveries`, () => {
   test('records a delivery when supportingReferences are provided', async ({
     server
   }) => {
-    await server.db
-      .collection(collectionName('movements'))
-      .insertOne({ movementId: movementId1 })
+    await storeMovements(server.db, [movementId1])
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
@@ -193,9 +186,7 @@ describe(`POST /${apiVersion}/deliveries`, () => {
   test('echoes the inbound x-cdp-request-id as x-request-id', async ({
     server
   }) => {
-    await server.db
-      .collection(collectionName('movements'))
-      .insertOne({ movementId: movementId1 })
+    await storeMovements(server.db, [movementId1])
 
     const { headers } = await server.inject({
       method: 'POST',
@@ -287,9 +278,7 @@ describe(`POST /${apiVersion}/deliveries`, () => {
     }
 
     test.beforeEach(async ({ server }) => {
-      await server.db
-        .collection(collectionName('movements'))
-        .insertOne({ movementId: movementId1 })
+      await storeMovements(server.db, [movementId1])
     })
 
     test.for([
@@ -514,9 +503,7 @@ describe(`POST /${apiVersion}/deliveries`, () => {
   })
 
   test('returns a 400 when a movementId does not exist', async ({ server }) => {
-    await server.db
-      .collection(collectionName('movements'))
-      .insertOne({ movementId: movementId1 })
+    await storeMovements(server.db, [movementId1])
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
@@ -539,9 +526,7 @@ describe(`POST /${apiVersion}/deliveries`, () => {
   })
 
   test('returns a 500 when persistence fails', async ({ server }) => {
-    await server.db
-      .collection(collectionName('movements'))
-      .insertOne({ movementId: movementId1 })
+    await storeMovements(server.db, [movementId1])
 
     vi.spyOn(delivery, 'createDeliveryRecords').mockRejectedValue(
       new Error('Database connection failed')
@@ -584,9 +569,7 @@ describe(`POST /${apiVersion}/deliveries`, () => {
   test('returns a 500 when the response body does not match the response schema', async ({
     server
   }) => {
-    await server.db
-      .collection(collectionName('movements'))
-      .insertOne({ movementId: movementId1 })
+    await storeMovements(server.db, [movementId1])
     // Stubbed so the bad id isn't rejected by the deliveries collection first.
     vi.spyOn(delivery, 'createDeliveryRecords').mockResolvedValueOnce([
       {
@@ -707,8 +690,7 @@ describe(`POST /${apiVersion}/deliveries`, () => {
       seedMovements
     }) => {
       await seedMovements(['261B23B4'], [])
-      await server.db.collection(collectionName('movements')).insertOne({
-        movementId: '269X8Y7Z',
+      await storeMovements(server.db, ['269X8Y7Z'], {
         wasteItems: [wasteItem, hazardousWasteItem]
       })
 
@@ -739,8 +721,7 @@ describe(`POST /${apiVersion}/deliveries`, () => {
         deliver
       }) => {
         await seedMovements(['261B23B4'], [])
-        await server.db.collection(collectionName('movements')).insertOne({
-          movementId: '269X8Y7Z',
+        await storeMovements(server.db, ['269X8Y7Z'], {
           wasteItems: [
             withDeclaration(wasteItem, { isPresent: true, codes: ['HP_4'] })
           ]
@@ -761,8 +742,7 @@ describe(`POST /${apiVersion}/deliveries`, () => {
         deliver
       }) => {
         await seedMovements(['261B23B4'], [])
-        await server.db.collection(collectionName('movements')).insertOne({
-          movementId: '262C34C5',
+        await storeMovements(server.db, ['262C34C5'], {
           wasteItems: [
             withDeclaration(hazardousWasteItem, { isPresent: false })
           ]
@@ -775,30 +755,6 @@ describe(`POST /${apiVersion}/deliveries`, () => {
           nonHazardous('261B23B4', '262C34C5')
         ])
       })
-    })
-
-    // Movements created before waste items were stored have no wasteItems.
-    test('aggregates a movement stored without waste items as non-hazardous', async ({
-      server,
-      seedMovements
-    }) => {
-      await seedMovements([], ['269X8Y7Z'])
-      await server.db
-        .collection(collectionName('movements'))
-        .insertOne({ movementId: '261B23B4' })
-
-      const { statusCode, result } = await server.inject({
-        method: 'POST',
-        url,
-        payload: { movementIds: ['269X8Y7Z', '261B23B4'], ...deliveryDetails },
-        headers: tracedAuthHeaders
-      })
-
-      expect(statusCode).toEqual(HTTP_STATUS.CREATED)
-      expect(result.data.deliveries).toEqual([
-        nonHazardous('261B23B4'),
-        hazardous('269X8Y7Z')
-      ])
     })
 
     test('delivers a movement ID submitted more than once only once', async ({

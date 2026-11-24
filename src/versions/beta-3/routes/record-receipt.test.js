@@ -13,6 +13,7 @@ import {
   physicalDetails,
   treatment
 } from '../schemas/test-helpers.js'
+import { storeDelivery } from '../data/test-helpers.js'
 import { collectionName, version } from '../index.js'
 
 const { apiVersion } = version
@@ -70,9 +71,7 @@ const test = routeTest.extend({
   // Records the delivery, then expects a receipt against it to be accepted
   expectCreated: async ({ server, submit }, use) => {
     await use(async (payload) => {
-      await server.db
-        .collection(collectionName('deliveries'))
-        .insertOne({ deliveryId })
+      await storeDelivery(server.db, deliveryId)
 
       const { statusCode, result } = await submit(payload)
 
@@ -84,9 +83,7 @@ const test = routeTest.extend({
   // Records the delivery, then expects a receipt against it to be rejected
   expectRejected: async ({ server, submit }, use) => {
     await use(async (payload, errors) => {
-      await server.db
-        .collection(collectionName('deliveries'))
-        .insertOne({ deliveryId })
+      await storeDelivery(server.db, deliveryId)
 
       const { statusCode, result } = await submit(payload)
 
@@ -104,9 +101,7 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
   test('acknowledges receipt against an existing delivery and returns 201 with the envelope shape', async ({
     server
   }) => {
-    await server.db
-      .collection(collectionName('deliveries'))
-      .insertOne({ deliveryId })
+    await storeDelivery(server.db, deliveryId)
 
     const { statusCode, result, headers } = await server.inject({
       method: 'POST',
@@ -133,9 +128,7 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
   test('acknowledges receipt when more than one treatment is declared', async ({
     server
   }) => {
-    await server.db
-      .collection(collectionName('deliveries'))
-      .insertOne({ deliveryId })
+    await storeDelivery(server.db, deliveryId)
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
@@ -160,9 +153,7 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
   test('acknowledges receipt when a brokerOrDealer and supportingReferences are provided', async ({
     server
   }) => {
-    await server.db
-      .collection(collectionName('deliveries'))
-      .insertOne({ deliveryId })
+    await storeDelivery(server.db, deliveryId)
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
@@ -240,9 +231,7 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
   test('echoes the inbound x-cdp-request-id as x-request-id', async ({
     server
   }) => {
-    await server.db
-      .collection(collectionName('deliveries'))
-      .insertOne({ deliveryId })
+    await storeDelivery(server.db, deliveryId)
 
     const { headers } = await server.inject({
       method: 'POST',
@@ -497,9 +486,7 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
   test('returns a 400 when no organisation was forwarded (unknown or disabled API code)', async ({
     server
   }) => {
-    await server.db
-      .collection(collectionName('deliveries'))
-      .insertOne({ deliveryId })
+    await storeDelivery(server.db, deliveryId)
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
@@ -579,9 +566,7 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
   test('returns a 500 when the response body does not match the response schema', async ({
     server
   }) => {
-    await server.db
-      .collection(collectionName('deliveries'))
-      .insertOne({ deliveryId })
+    await storeDelivery(server.db, deliveryId)
     breakNextResponse(server, (body) => ({ ...body, data: {} }))
 
     const { statusCode, result } = await server.inject({
@@ -687,9 +672,7 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
   test('logs a rejected receipt against the Movements delivered under it', async ({
     server
   }) => {
-    await server.db
-      .collection(collectionName('deliveries'))
-      .insertOne({ deliveryId, movementIds: ['25HRA0B1', '25HRA0B2'] })
+    await storeDelivery(server.db, deliveryId, ['25HRA0B1', '25HRA0B2'])
     const info = vi.spyOn(createLogger(), 'info')
 
     const { statusCode } = await server.inject({

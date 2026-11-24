@@ -21,6 +21,7 @@ import {
   wasteItem
 } from '../schemas/test-helpers.js'
 import { createMovementId } from '#/common/http/waste-tracking.js'
+import { storeMovements } from '../data/test-helpers.js'
 import { collectionName, version } from '../index.js'
 
 const { apiVersion } = version
@@ -715,7 +716,7 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
       server,
       movements
     }) => {
-      await movements.insertOne({ movementId, orgId: 'another-org' })
+      await storeMovements(server.db, [movementId], { orgId: 'another-org' })
       const createMovementRecordSpy = vi.spyOn(
         movementCreate,
         'createMovementRecord'
@@ -732,8 +733,8 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
       expect(statusCode).toEqual(HTTP_STATUS.INTERNAL_SERVER_ERROR)
       expect(createMovementRecordSpy).toHaveBeenCalledTimes(1)
       expect(
-        await movements.findOne({ movementId }, { projection: { _id: 0 } })
-      ).toEqual({ movementId, orgId: 'another-org' })
+        await movements.findOne({ movementId }, { projection: { orgId: 1 } })
+      ).toEqual({ _id: expect.any(Object), orgId: 'another-org' })
     })
   })
 

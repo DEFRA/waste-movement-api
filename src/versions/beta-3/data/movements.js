@@ -4,20 +4,16 @@ const logger = createLogger()
 
 /**
  * The movement data access for one collection, e.g. `beta-3-g1-movements`.
+ * Its schema and indexes are in schemas/movement/: syncDataSchemas creates
+ * the collection with them, so its validator rejects a document of the wrong
+ * shape, and a unique index on `movementId` stores a Movement once.
  *
  * @param {string} collectionName
+ * @param {import('#/common/data/data-schemas.js').DataSchema} dataSchema
  */
-export const movementData = (collectionName) => ({
-  /**
-   * A Movement is stored once: a unique index on `movementId`.
-   *
-   * @param {import('mongodb').Db} db
-   */
-  createIndexes: async (db) => {
-    await db
-      .collection(collectionName)
-      .createIndex({ movementId: 1 }, { unique: true })
-  },
+export const movementData = (collectionName, dataSchema) => ({
+  collectionName,
+  dataSchema,
 
   /**
    * Looks up a movement record by its movement ID.

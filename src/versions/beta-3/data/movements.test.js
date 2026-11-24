@@ -1,15 +1,18 @@
 import { MongoClient } from 'mongodb'
-import { collectionName as versionCollectionName, version } from '../index.js'
+import { syncDataSchemas } from '#/common/data/sync-data-schemas.js'
+import {
+  dataSchemas,
+  collectionName as versionCollectionName,
+  version
+} from '../index.js'
 import { movementData } from './movements.js'
 
 const collectionName = versionCollectionName('movements')
 
-const {
-  createIndexes,
-  getMovementRecord,
-  findMovements,
-  createMovementRecord
-} = movementData(collectionName)
+const movements = movementData(collectionName, dataSchemas.movement)
+const { getMovementRecord, findMovements, createMovementRecord } = movements
+
+const orgId = '57aed195-325e-45d5-b1fb-5f201e0324cf'
 
 const failingDb = (error) => ({
   collection: vi.fn().mockImplementation(() => {
@@ -26,7 +29,7 @@ describe('movement data', () => {
     client = await MongoClient.connect(process.env.MONGO_URI)
     db = client.db(`${version.apiVersion}-data-test`)
     await db.dropDatabase()
-    await createIndexes(db)
+    await syncDataSchemas(db, [movements], version.logger)
 
     vi.useFakeTimers({ toFake: ['Date'] })
   })
@@ -42,21 +45,11 @@ describe('movement data', () => {
     await movementsCollection.deleteMany({})
   })
 
-  describe('createIndexes', () => {
-    it('makes movementId unique', async () => {
-      await movementsCollection.insertOne({ movementId: '25HRA0B1' })
-
-      await expect(
-        movementsCollection.insertOne({ movementId: '25HRA0B1' })
-      ).rejects.toMatchObject({ code: 11000 })
-    })
-  })
-
   describe('getMovementRecord', () => {
     it('should get a movement with the given movementId ', async () => {
       const id = 'ourGeneratedId'
       const now = new Date().toISOString()
-      const mockMovement = { movementId: id }
+      const mockMovement = { movementId: id, orgId, wasteItems: [] }
 
       const result = await createMovementRecord(db, mockMovement)
 
@@ -67,7 +60,7 @@ describe('movement data', () => {
       expect(recordInDb).toEqual({
         _id: expect.any(Object),
         createdAt: now,
-        movementId: id
+        ...mockMovement
       })
     })
 
@@ -93,14 +86,16 @@ describe('movement data', () => {
     }
 
     it("returns the movements that exist, with only their waste items' classifications", async () => {
-      await movementsCollection.insertMany([
-        {
-          movementId: '25HRA0B1',
-          orgId: 'org',
-          wasteItems: [{ classification, physicalDetails: { form: 'SOLID' } }]
-        },
-        { movementId: '25HRA0B2', orgId: 'org', wasteItems: [] }
-      ])
+      await createMovementRecord(db, {
+        movementId: '25HRA0B1',
+        orgId,
+        wasteItems: [{ classification, physicalDetails: { form: 'SOLID' } }]
+      })
+      await createMovementRecord(db, {
+        movementId: '25HRA0B2',
+        orgId,
+        wasteItems: []
+      })
 
       const result = await findMovements(db, [
         '25HRA0B1',
@@ -117,14 +112,6 @@ describe('movement data', () => {
       expect(result).toHaveLength(2)
     })
 
-    it('omits wasteItems for a movement stored without them', async () => {
-      await movementsCollection.insertOne({ movementId: '25HRA0B1' })
-
-      const result = await findMovements(db, ['25HRA0B1'])
-
-      expect(result).toEqual([{ movementId: '25HRA0B1' }])
-    })
-
     it('returns an empty array when none exist', async () => {
       const result = await findMovements(db, ['25HRA0B1'])
 
@@ -136,10 +123,7 @@ describe('movement data', () => {
     it('should create a movement in the db and return the movementId', async () => {
       const movementId = '25HRA0B2'
       const now = new Date().toISOString()
-      const mockMovement = {
-        movementId,
-        orgId: '57aed195-325e-45d5-b1fb-5f201e0324cf'
-      }
+      const mockMovement = { movementId, orgId, wasteItems: [] }
 
       const result = await createMovementRecord(db, mockMovement)
 
@@ -157,18 +141,31 @@ describe('movement data', () => {
     })
 
     it('rejects a movementId that is already stored', async () => {
-      await createMovementRecord(db, { movementId: '25HRA0B2' })
+      const movement = { movementId: '25HRA0B2', orgId, wasteItems: [] }
+      await createMovementRecord(db, movement)
 
+      await expect(createMovementRecord(db, movement)).rejects.toMatchObject({
+        code: 11000
+      })
+    })
+
+    it('is rejected by the collection validator when it does not match the DB schema', async () => {
       await expect(
-        createMovementRecord(db, { movementId: '25HRA0B2' })
-      ).rejects.toMatchObject({ code: 11000 })
+        createMovementRecord(db, { movementId: '25HRA0B2', orgId })
+      ).rejects.toMatchObject({ code: 121 })
+
+      expect(await movementsCollection.countDocuments()).toBe(0)
     })
 
     it('should handle database errors ', async () => {
       const mockError = new Error('Database error')
 
       await expect(
-        createMovementRecord(failingDb(mockError), { movementId: '25HRA0B2' })
+        createMovementRecord(failingDb(mockError), {
+          movementId: '25HRA0B2',
+          orgId,
+          wasteItems: []
+        })
       ).rejects.toThrow(mockError.message)
     })
   })
