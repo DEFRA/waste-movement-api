@@ -139,7 +139,7 @@ collections (`<version>-g<N>-*`) are left in MongoDB; drop them by hand once not
 ### Stored data and DATA_GENERATION
 
 Each version stores its data in its own collections, named `<version>-g<DATA_GENERATION>-<name>`,
-e.g. `beta-3-g2-movements` and `beta-3-g2-deliveries`. What each holds is specified in the version's
+e.g. `beta-3-g1-movements` and `beta-3-g1-deliveries`. What each holds is specified in the version's
 `data/schemas/`, and enforced: each collection has its schema as a MongoDB validator.
 
 **Bump `DATA_GENERATION`** (in the version's `data/generation.js`) for any change to a DB schema
