@@ -15,7 +15,7 @@ import { validators } from './schemas/validators.js'
 
 const apiVersion = 'beta-3'
 // Names this version's collections, e.g. collectionName('movements') is
-// `beta-3-g2-movements`.
+// `beta-3-g1-movements`.
 export const collectionName = versionedCollections(apiVersion, DATA_GENERATION)
 
 // The stored shape of each entity: see data/schemas/README.md
