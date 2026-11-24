@@ -29,7 +29,9 @@ const findCollection = async (db, collectionName) => {
   return collection
 }
 
-// Whether it created it: false when another instance got there first
+// False when another instance created it first from a different schema.
+// MongoDB accepts a create with the same options as the existing collection,
+// so true doesn't mean this instance created it.
 const createCollection = async (db, collectionName, schema) => {
   try {
     await db.createCollection(collectionName, {
@@ -151,7 +153,7 @@ const ensureCollection = async (db, collectionName, schema, logger) => {
   if (await createCollection(db, collectionName, schema)) {
     logger.info(
       { collection: collectionName },
-      `Created ${collectionName} with its schema as its validator`
+      `Created ${collectionName} with its schema as its validator, or another instance did`
     )
     return
   }

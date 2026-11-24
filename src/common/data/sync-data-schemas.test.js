@@ -1,4 +1,4 @@
-import { MongoClient, MongoServerError } from 'mongodb'
+import { MongoClient } from 'mongodb'
 import {
   DataSchemaMismatchError,
   syncDataSchemas
@@ -93,31 +93,18 @@ describe('syncDataSchemas', () => {
       ])
     })
 
-    // Another instance creates it, from `theirSchema`, between this instance
-    // looking for it and creating it
-    const loseTheRace = (theirSchema) => {
+    test('refuses when another instance created it first from a different schema', async () => {
+      // It's created between this instance looking for it and creating it
       const create = db.createCollection.bind(db)
       vi.spyOn(db, 'createCollection').mockImplementationOnce(
         async (name, options) => {
           await create(name, {
             ...options,
-            validator: { $jsonSchema: theirSchema }
+            validator: { $jsonSchema: schema({ note: { bsonType: 'string' } }) }
           })
-          throw new MongoServerError({ message: 'exists', code: 48 })
+          return create(name, options)
         }
       )
-    }
-
-    test('carries on when another instance created it first', async () => {
-      loseTheRace(schema())
-
-      await expect(sync()).resolves.toBeUndefined()
-      expect(await storedIndexes()).toHaveLength(1)
-      expect(logger.info).not.toHaveBeenCalled()
-    })
-
-    test('refuses when another instance created it first from a different schema', async () => {
-      loseTheRace(schema({ note: { bsonType: 'string' } }))
 
       await expect(sync()).rejects.toThrow(
         'things: its validator differs from its schema, bump DATA_GENERATION'
