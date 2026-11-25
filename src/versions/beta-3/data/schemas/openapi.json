@@ -3,21 +3,39 @@
   "info": {
     "title": "Digital Waste Tracking API — stored data",
     "version": "beta-3",
-    "description": "What `beta-3` stores in MongoDB: one schema per collection (`beta-3-g<N>-<entity>s`), with example documents as relaxed Extended JSON. It has no endpoints: it only gathers the DB schemas in one document to browse. Types are MongoDB's `bsonType`, which OpenAPI tools show as an unknown keyword rather than a type. See README.md beside this file."
+    "description": "What `beta-3` stores in MongoDB: one schema per collection (`beta-3-g<N>-<entity>s`), sharing the envelope's fields, with example documents as relaxed Extended JSON. It has no endpoints: it only gathers the DB schemas in one document to browse. Fields are typed with standard `type`, except the BSON-only ones (`_id`, `createdAt`, `updatedAt`, `payload`, `revision`), which use MongoDB's `bsonType` and show as untyped. See README.md beside this file."
   },
   "paths": {},
   "components": {
     "schemas": {
+      "envelope": {
+        "$ref": "./common/envelope.schema.json"
+      },
       "movement": {
         "$ref": "./movement/movement.schema.json"
       },
+      "collection": {
+        "$ref": "./collection/collection.schema.json"
+      },
       "delivery": {
         "$ref": "./delivery/delivery.schema.json"
+      },
+      "receipt": {
+        "$ref": "./receipt/receipt.schema.json"
       }
     },
     "examples": {
       "movementHousehold": {
         "$ref": "./movement/movement.examples.json#/household"
+      },
+      "movementCommercial": {
+        "$ref": "./movement/movement.examples.json#/commercial"
+      },
+      "collectionWithBrokerAndReferences": {
+        "$ref": "./collection/collection.examples.json#/withBrokerAndReferences"
+      },
+      "collectionMinimal": {
+        "$ref": "./collection/collection.examples.json#/minimal"
       },
       "deliveryNonHazardous": {
         "$ref": "./delivery/delivery.examples.json#/nonHazardous"
@@ -27,6 +45,12 @@
       },
       "deliveryUndocumentedReceipt": {
         "$ref": "./delivery/delivery.examples.json#/undocumentedReceipt"
+      },
+      "receiptWithBrokerAndReferences": {
+        "$ref": "./receipt/receipt.examples.json#/withBrokerAndReferences"
+      },
+      "receiptUndocumented": {
+        "$ref": "./receipt/receipt.examples.json#/undocumented"
       }
     }
   }

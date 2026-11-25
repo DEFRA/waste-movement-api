@@ -1,11 +1,14 @@
 import path from 'node:path'
 import { loadDataSchemas } from '#/common/data/data-schemas.js'
+import { entityStore } from '#/common/data/entity-store.js'
 import { syncDataSchemas } from '#/common/data/sync-data-schemas.js'
 import { versionedCollections } from '#/common/data/versioned-collections.js'
 import { createLogger } from '#/common/helpers/logging/logger.js'
 import { DATA_GENERATION } from './data/generation.js'
+import { collectionData } from './data/collections.js'
 import { deliveryData } from './data/deliveries.js'
 import { movementData } from './data/movements.js'
+import { receiptData } from './data/receipts.js'
 import { createMovement } from './routes/create-movement.js'
 import { recordCollection } from './routes/record-collection.js'
 import { recordDelivery } from './routes/record-delivery.js'
@@ -15,7 +18,7 @@ import { validators } from './schemas/validators.js'
 
 const apiVersion = 'beta-3'
 // Names this version's collections, e.g. collectionName('movements') is
-// `beta-3-g1-movements`.
+// `beta-3-g2-movements`.
 export const collectionName = versionedCollections(apiVersion, DATA_GENERATION)
 
 // The stored shape of each entity: see data/schemas/README.md
@@ -23,16 +26,24 @@ export const dataSchemas = loadDataSchemas(
   path.join(import.meta.dirname, 'data', 'schemas')
 )
 
+const logger = createLogger({ apiVersion })
+
+// Every write goes through one of these: see entityStore
+const store = (name, dataSchema) =>
+  entityStore(collectionName(name), dataSchema, logger)
+
 /**
  * Everything the routes need from this version. Its data access objects are
  * the ones the handlers call, so tests can spy on their functions.
  */
 export const version = {
   apiVersion,
-  logger: createLogger({ apiVersion }),
+  logger,
   validators,
-  movements: movementData(collectionName('movements'), dataSchemas.movement),
-  deliveries: deliveryData(collectionName('deliveries'), dataSchemas.delivery)
+  movements: movementData(store('movements', dataSchemas.movement)),
+  collections: collectionData(store('collections', dataSchemas.collection)),
+  deliveries: deliveryData(store('deliveries', dataSchemas.delivery)),
+  receipts: receiptData(store('receipts', dataSchemas.receipt))
 }
 
 const routes = [
@@ -55,7 +66,12 @@ export const beta3 = {
       // In every instance: safe to run from several at once
       await syncDataSchemas(
         server.db,
-        [version.movements, version.deliveries],
+        [
+          version.movements,
+          version.collections,
+          version.deliveries,
+          version.receipts
+        ],
         version.logger
       )
 

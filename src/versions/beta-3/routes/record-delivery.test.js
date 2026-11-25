@@ -70,12 +70,24 @@ const test = routeTest.extend({
     )
   },
 
-  // The stored deliveries, without their generated fields
+  // The stored deliveries, without their generated fields or payload
   findDeliveries: async ({ server }, use) => {
     await use(() =>
       server.db
         .collection(collectionName('deliveries'))
-        .find({}, { projection: { _id: 0, createdAt: 0 } })
+        .find(
+          {},
+          {
+            projection: {
+              _id: 0,
+              orgId: 1,
+              requestId: 1,
+              deliveryId: 1,
+              movementIds: 1,
+              wasteType: 1
+            }
+          }
+        )
         .toArray()
     )
   },
@@ -678,8 +690,10 @@ describe(`POST /${apiVersion}/deliveries`, () => {
         expect(createDeliveryId).toHaveBeenCalledTimes(nextCalls)
         expect(await findDeliveries()).toEqual(
           expected.map((item) => ({
-            ...item,
-            orgId: forwardedOrganisationId
+            orgId: forwardedOrganisationId,
+            // Every Delivery one request recorded shares its x-request-id
+            requestId: traceId,
+            ...item
           }))
         )
       }

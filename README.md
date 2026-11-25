@@ -98,8 +98,10 @@ src/
     http/              waste-tracking-id-backend client: createMovementId, createDeliveryId
     data/              versionedCollections, loadDataSchemas, syncDataSchemas (collections
                        created from, and checked against, their DB schemas at boot),
-                       isDuplicateKeyError, insertWithRetry (a duplicate key on a retry counts
-                       as success)
+                       entityStore (stamps the envelope, checks a document with ajv, writes it),
+                       storedPayload (payload and payloadHash), insertOnce (a resubmission of the
+                       same request succeeds, a different one is a 409), withTransaction,
+                       isDuplicateKeyError, insertWithRetry (a duplicate key on a retry counts as success)
     openapi/           bundle(specPath): an OpenAPI document with every $ref resolved
     organisation.js    getOrganisationId, from the x-dwt-organisation-id header
     route-errors.js    handleBetaRouteError
@@ -139,8 +141,12 @@ collections (`<version>-g<N>-*`) are left in MongoDB; drop them by hand once not
 ### Stored data and DATA_GENERATION
 
 Each version stores its data in its own collections, named `<version>-g<DATA_GENERATION>-<name>`,
-e.g. `beta-3-g1-movements` and `beta-3-g1-deliveries`. What each holds is specified in the version's
-`data/schemas/`, and enforced: each collection has its schema as a MongoDB validator.
+e.g. `beta-3-g2-movements`, `-collections`, `-deliveries` and `-receipts`. What each holds is
+specified in the version's `data/schemas/`, and enforced: each collection has its schema as a
+MongoDB validator, and every write is checked against it with ajv first. A document keeps the
+request body (`payload`), an envelope (`orgId`, `requestId`, `revision`, `createdAt`,
+`updatedAt`) and only the fields the business logic reads, e.g. a movement's `isHazardous`. See
+the version's `data/schemas/README.md`.
 
 **Bump `DATA_GENERATION`** (in the version's `data/generation.js`) for any change to a DB schema
 other than to a `title` or `description`, even a new optional field, and any change to its indexes.
@@ -153,11 +159,14 @@ Rolling back across a bump goes back to the older generation's data. In a shared
 branches that bump to the same generation with different schemas clash: the second refuses to
 start. Drop that generation's collections there by hand.
 
-`movementId` is unique; `deliveryId` isn't, since a resubmitted
-hazardous Movement has a delivery record per submission. Creating a movement retries a failed
-write, and a retry that finds its `movementId` already stored counts as success (the earlier attempt
-landed, but its acknowledgement was lost). The first attempt finding it stored means the ID was
-minted twice, which is a 500.
+`movementId` is unique; `deliveryId` isn't, since a resubmitted hazardous Movement has a delivery
+record per submission. A Movement is collected once and a Delivery received once: a collection's
+`movementId` and a receipt's `deliveryId` are unique, and a second
+`POST /movements/{movementId}/collection` or `POST /deliveries/{deliveryId}/receipt` is a 409,
+unless it's the same request resubmitted (same organisation and `payloadHash`), which gets its 201
+again. Creating a movement retries a failed write, and a retry that finds its `movementId` already
+stored counts as success (the earlier attempt landed, but its acknowledgement was lost). The first
+attempt finding it stored means the ID was minted twice, which is a 500.
 
 ## Requirements
 

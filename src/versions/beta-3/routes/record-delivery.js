@@ -6,7 +6,6 @@ import { backOff } from 'exponential-backoff'
 import { createDeliveryId } from '#/common/http/waste-tracking.js'
 import { getOrganisationId } from '#/common/organisation.js'
 import { handleBetaRouteError } from '#/common/route-errors.js'
-import { isHazardous } from '../checks/waste-reference-data-checks.js'
 import { WASTE_TYPE } from '../checks/waste-type.js'
 
 /**
@@ -16,12 +15,12 @@ import { WASTE_TYPE } from '../checks/waste-type.js'
  * waste items declares hazardous properties.
  *
  * @param {string[]} movementIds - deduplicated, in submission order
- * @param {Map<string, { wasteItems?: { classification: object }[] }>} movementsById
+ * @param {Map<string, { isHazardous: boolean }>} movementsById
  * @returns {Promise<{ deliveryId: string, movementIds: string[], wasteType: string }[]>}
  */
 const splitIntoDeliveries = async (movementIds, movementsById) => {
   const isHazardousMovement = (movementId) =>
-    isHazardous(movementsById.get(movementId))
+    movementsById.get(movementId).isHazardous
   const hazardousIds = movementIds.filter(isHazardousMovement)
   const nonHazardousIds = movementIds.filter((id) => !isHazardousMovement(id))
 
@@ -45,6 +44,56 @@ const splitIntoDeliveries = async (movementIds, movementsById) => {
   ]
 }
 
+/**
+ * Looks up the submitted movements, by ID, with whether each is hazardous.
+ * Any that don't exist reject the whole request.
+ *
+ * @param {object} version
+ * @param {import('mongodb').Db} db
+ * @param {string[]} movementIds - deduplicated
+ * @returns {Promise<Map<string, { isHazardous: boolean }>>}
+ */
+const findDeliverableMovements = async (
+  { logger, movements },
+  db,
+  movementIds
+) => {
+  const found = await movements.findMovements(db, movementIds)
+  const movementsById = new Map(
+    found.map((movement) => [movement.movementId, movement])
+  )
+  const missingMovementIds = movementIds.filter(
+    (movementId) => !movementsById.has(movementId)
+  )
+
+  if (missingMovementIds.length > 0) {
+    const message = `Movement ID(s) not recognised: ${missingMovementIds.join(', ')}`
+    logger.error({ movementIds, missingMovementIds }, message)
+
+    throw badRequest(message)
+  }
+
+  return movementsById
+}
+
+/**
+ * @param {{ deliveryId: string, movementIds: string[], wasteType: string }[]} recordedDeliveries -
+ * the stored documents, in order
+ * @returns {object} the 201 response body
+ */
+const toResponseBody = (recordedDeliveries) => ({
+  data: {
+    deliveries: recordedDeliveries.map(
+      ({ deliveryId, movementIds, wasteType }) => ({
+        deliveryId,
+        movementIds,
+        wasteType
+      })
+    )
+  },
+  validation: { warnings: [] }
+})
+
 export const recordDelivery = (version) => ({
   method: 'POST',
   path: '/deliveries',
@@ -63,29 +112,19 @@ export const recordDelivery = (version) => ({
     }
   },
   handler: async (request, h) => {
-    const { logger, movements, deliveries } = version
+    const { logger, deliveries } = version
     // A Movement ID submitted twice is only delivered once.
     const movementIds = [...new Set(request.payload.movementIds)]
 
     try {
-      const traceId = getTraceId() || randomUUID()
+      const requestId = getTraceId() || randomUUID()
       const orgId = getOrganisationId(request)
 
-      const found = await movements.findMovements(request.db, movementIds)
-      const movementsById = new Map(
-        found.map((movement) => [movement.movementId, movement])
+      const movementsById = await findDeliverableMovements(
+        version,
+        request.db,
+        movementIds
       )
-      const missingMovementIds = movementIds.filter(
-        (movementId) => !movementsById.has(movementId)
-      )
-
-      if (missingMovementIds.length > 0) {
-        const message = `Movement ID(s) not recognised: ${missingMovementIds.join(', ')}`
-        logger.error({ movementIds, missingMovementIds }, message)
-
-        throw badRequest(message)
-      }
-
       const split = await splitIntoDeliveries(movementIds, movementsById)
 
       const recordedDeliveries = await backOff(
@@ -93,7 +132,8 @@ export const recordDelivery = (version) => ({
           deliveries.createDeliveryRecords(
             request.db,
             request.mongoClient,
-            split.map((delivery) => ({ ...delivery, orgId }))
+            { orgId, requestId, payload: request.payload },
+            split
           ),
         backoffOptions(logger)
       )
@@ -109,12 +149,9 @@ export const recordDelivery = (version) => ({
       )
 
       return h
-        .response({
-          data: { deliveries: recordedDeliveries },
-          validation: { warnings: [] }
-        })
+        .response(toResponseBody(recordedDeliveries))
         .code(HTTP_STATUS.CREATED)
-        .header('x-request-id', traceId)
+        .header('x-request-id', requestId)
         .message('Successfully recorded a delivery')
     } catch (error) {
       return handleBetaRouteError(error)

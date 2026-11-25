@@ -1,0 +1,52 @@
+{
+  "withBrokerAndReferences": {
+    "summary": "A Receipt against a Delivery",
+    "value": {
+      "_id": {
+        "$oid": "6966b3a6c2f1a40b8e9d1a17"
+      },
+      "orgId": "d829f66d-857f-401d-b5e9-5061b7dbb29d",
+      "requestId": "a6b7c8d9-a4b5-4c6d-8f70-8b9c0d1e2f3a",
+      "revision": 0,
+      "createdAt": {
+        "$date": "2026-01-16T07:30:00Z"
+      },
+      "updatedAt": {
+        "$date": "2026-01-16T07:30:00Z"
+      },
+      "payload": {
+        "$binary": {
+          "base64": "eyJyZWNlaXB0RGF0ZVRpbWUiOiIyMDI2LTEwLTE0VDA5OjMwOjAwWiIsImNhcnJpZXIiOnsib3JnYW5pc2F0aW9uTmFtZSI6IkNhcnJpZXIgRGVtbyBMdGQiLCJyZWdpc3RyYXRpb25OdW1iZXIiOiJDQkRVMTIzNDU2IiwibWVhbnNPZlRyYW5zcG9ydCI6IlJPQUQiLCJ2ZWhpY2xlUmVnaXN0cmF0aW9uIjoiQUIxMiBDREUiLCJjb250YWN0RGV0YWlscyI6eyJlbWFpbEFkZHJlc3MiOiJjYXJyaWVyQGV4YW1wbGUuY29tIiwicGhvbmVOdW1iZXIiOiIwMTIzNDU2Nzg5MCJ9LCJhZGRyZXNzIjp7ImZ1bGxBZGRyZXNzIjoiNCBDYXJyaWVyIExhbmUsIFRlc3QgQ2l0eSIsInBvc3Rjb2RlIjoiVEUxIDRDUiJ9fSwicmVjZWl2ZXIiOnsic2l0ZU5hbWUiOiJSZWNlaXZlciBTaXRlIEx0ZCIsImF1dGhvcmlzYXRpb25OdW1iZXIiOiJFQVMvUC8xMjM0NTYiLCJyZWNlaXB0QWRkcmVzcyI6eyJmdWxsQWRkcmVzcyI6IjMgUmVjZWl2ZXIgUm9hZCwgVGVzdCBDaXR5IiwicG9zdGNvZGUiOiJURTEgM1JDIn0sImNvbnRhY3REZXRhaWxzIjp7ImVtYWlsQWRkcmVzcyI6InJlY2VpdmVyQGV4YW1wbGUuY29tIiwicGhvbmVOdW1iZXIiOiIwMTIzNDU2Nzg5MCJ9fSwicGh5c2ljYWxEZXRhaWxzIjp7ImZvcm0iOiJTT0xJRCIsImNvbnRhaW5lclR5cGUiOiJEUlUiLCJjb250YWluZXJDb3VudCI6NCwidG90YWxXZWlnaHQiOnsiYW1vdW50IjoyNDguMiwidW5pdCI6IktJTE9HUkFNUyIsImlzRXN0aW1hdGUiOmZhbHNlfX0sInRyZWF0bWVudHMiOlt7ImRpc3Bvc2FsT3JSZWNvdmVyeUNvZGUiOiJSMyIsIndlaWdodCI6eyJhbW91bnQiOjI0OC4yLCJ1bml0IjoiS0lMT0dSQU1TIiwiaXNFc3RpbWF0ZSI6ZmFsc2V9fV0sImJyb2tlck9yRGVhbGVyIjp7ImlzUHJlc2VudCI6dHJ1ZSwiaXRlbXMiOlt7Im9yZ2FuaXNhdGlvbk5hbWUiOiJCcm9rZXIgRGVtbyBMdGQiLCJyZWdpc3RyYXRpb25OdW1iZXIiOiJDQkRVNjU0MzIxIiwiY29udGFjdERldGFpbHMiOnsiZW1haWxBZGRyZXNzIjoiYnJva2VyQGV4YW1wbGUuY29tIiwicGhvbmVOdW1iZXIiOiIwMTExMjIyMzMzMyJ9LCJhZGRyZXNzIjp7ImZ1bGxBZGRyZXNzIjoiMiBCcm9rZXIgWWFyZCwgVGVzdCBDaXR5IiwicG9zdGNvZGUiOiJURTEgMVNUIn19XX0sInN1cHBvcnRpbmdSZWZlcmVuY2VzIjpbeyJsYWJlbCI6IldFSUdIQlJJREdFX05VTUJFUiIsInJlZmVyZW5jZSI6IldCLTAwNDIifV19",
+          "subType": "00"
+        }
+      },
+      "payloadHash": "a10df40023954a4963720c6ff2ab585b2f363a5b7200ff532a1158a9d02ec694",
+      "deliveryId": "25KMT4Z9"
+    }
+  },
+  "undocumented": {
+    "summary": "An undocumented Receipt, against the empty Delivery it created",
+    "value": {
+      "_id": {
+        "$oid": "6966b3a6c2f1a40b8e9d1a18"
+      },
+      "orgId": "d829f66d-857f-401d-b5e9-5061b7dbb29d",
+      "requestId": "f5a6b7c8-93a4-4b5c-9e6f-7a8b9c0d1e2f",
+      "revision": 0,
+      "createdAt": {
+        "$date": "2026-01-16T08:45:00Z"
+      },
+      "updatedAt": {
+        "$date": "2026-01-16T08:45:00Z"
+      },
+      "payload": {
+        "$binary": {
+          "base64": "eyJyZWFzb25Gb3JOb0RlbGl2ZXJ5SWQiOiJObyBkZWxpdmVyeSB3YXMgcmVjb3JkZWQgcHJpb3IgdG8gcmVjZWlwdDsgd2FzdGUgcmVjZWl2ZWQgZGlyZWN0bHkgZnJvbSB0aGUgcHJvZHVjZXIuIiwicmVjZWlwdERhdGVUaW1lIjoiMjAyNi0xMC0xNFQwOTozMDowMFoiLCJjYXJyaWVyIjp7Im9yZ2FuaXNhdGlvbk5hbWUiOiJDYXJyaWVyIERlbW8gTHRkIiwicmVnaXN0cmF0aW9uTnVtYmVyIjoiQ0JEVTEyMzQ1NiIsIm1lYW5zT2ZUcmFuc3BvcnQiOiJST0FEIiwidmVoaWNsZVJlZ2lzdHJhdGlvbiI6IkFCMTIgQ0RFIiwiY29udGFjdERldGFpbHMiOnsiZW1haWxBZGRyZXNzIjoiY2FycmllckBleGFtcGxlLmNvbSIsInBob25lTnVtYmVyIjoiMDEyMzQ1Njc4OTAifSwiYWRkcmVzcyI6eyJmdWxsQWRkcmVzcyI6IjQgQ2FycmllciBMYW5lLCBUZXN0IENpdHkiLCJwb3N0Y29kZSI6IlRFMSA0Q1IifX0sInJlY2VpdmVyIjp7InNpdGVOYW1lIjoiUmVjZWl2ZXIgU2l0ZSBMdGQiLCJhdXRob3Jpc2F0aW9uTnVtYmVyIjoiRUFTL1AvMTIzNDU2IiwicmVjZWlwdEFkZHJlc3MiOnsiZnVsbEFkZHJlc3MiOiIzIFJlY2VpdmVyIFJvYWQsIFRlc3QgQ2l0eSIsInBvc3Rjb2RlIjoiVEUxIDNSQyJ9LCJjb250YWN0RGV0YWlscyI6eyJlbWFpbEFkZHJlc3MiOiJyZWNlaXZlckBleGFtcGxlLmNvbSIsInBob25lTnVtYmVyIjoiMDEyMzQ1Njc4OTAifX0sIndhc3RlSXRlbXMiOlt7ImNsYXNzaWZpY2F0aW9uIjp7Indhc3RlRGVzY3JpcHRpb24iOiJNaXhlZCBtdW5pY2lwYWwgd2FzdGUiLCJld2NDb2RlcyI6WyIyMDAzMDEiXSwicG9wcyI6eyJpc1ByZXNlbnQiOnRydWUsImNvbXBvbmVudHNTb3VyY2UiOiJPV05fVEVTVElORyIsImNvbXBvbmVudHMiOlt7ImNvZGUiOiJQRk9BIiwidW5pdCI6Ik1HX1BFUl9LRyIsImFtb3VudCI6MC41fSx7ImNvZGUiOiJQRk9TIiwidGhyZXNob2xkIjoiTEVTU19USEFOIn1dfSwiaGF6YXJkb3VzIjp7ImlzUHJlc2VudCI6ZmFsc2V9fSwicGh5c2ljYWxEZXRhaWxzIjp7ImZvcm0iOiJTT0xJRCIsImNvbnRhaW5lclR5cGUiOiJEUlUiLCJjb250YWluZXJDb3VudCI6NCwidG90YWxXZWlnaHQiOnsiYW1vdW50IjoyNDguMiwidW5pdCI6IktJTE9HUkFNUyIsImlzRXN0aW1hdGUiOmZhbHNlfX0sInRyZWF0bWVudHMiOlt7ImRpc3Bvc2FsT3JSZWNvdmVyeUNvZGUiOiJSMyIsIndlaWdodCI6eyJhbW91bnQiOjI0OC4yLCJ1bml0IjoiS0lMT0dSQU1TIiwiaXNFc3RpbWF0ZSI6ZmFsc2V9fV19XSwic3VwcG9ydGluZ1JlZmVyZW5jZXMiOlt7ImxhYmVsIjoiV0VJR0hCUklER0VfTlVNQkVSIiwicmVmZXJlbmNlIjoiV0ItMDA0MiJ9XX0=",
+          "subType": "00"
+        }
+      },
+      "payloadHash": "b577a11a2d08887625e5d71ddada636d703e255d0d4a90e8d260a5b0f7d49803",
+      "deliveryId": "25KMT5A1"
+    }
+  }
+}

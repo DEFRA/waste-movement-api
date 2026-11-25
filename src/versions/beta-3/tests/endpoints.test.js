@@ -6,6 +6,7 @@ import { describeBetaEndpointTests } from '#test/integration/helpers/beta-endpoi
 import { apiCode1 } from '#test/data/api-codes.js'
 import { forwardedOrganisationId } from '#test/data/organisation-headers.js'
 import { ObjectId } from 'mongodb'
+import { fromPayload } from '#/common/data/payload.js'
 import { expectProblemResponse } from '#test/integration/helpers/expect-problem-response.js'
 import { expectResponseBodyHasCorrectShape } from '#test/integration/helpers/expect-response-body-has-shape.js'
 import {
@@ -106,8 +107,13 @@ describe(apiVersion, () => {
         _id: expect.any(ObjectId),
         movementId,
         orgId: forwardedOrganisationId,
-        wasteItems,
-        createdAt: expect.any(String)
+        revision: 0,
+        isHazardous: false,
+        createdAt: expect.any(Date)
+      })
+      expect(fromPayload(movement.payload)).toMatchObject({
+        producer,
+        wasteItems
       })
     })
 
@@ -145,7 +151,7 @@ describe(apiVersion, () => {
         _id: expect.any(ObjectId),
         movementId,
         orgId: forwardedOrganisationId,
-        createdAt: expect.any(String)
+        createdAt: expect.any(Date)
       })
     })
 
@@ -195,7 +201,7 @@ describe(apiVersion, () => {
         _id: expect.any(ObjectId),
         movementId,
         orgId: forwardedOrganisationId,
-        createdAt: expect.any(String)
+        createdAt: expect.any(Date)
       })
     })
   })
@@ -231,14 +237,22 @@ describe(apiVersion, () => {
     })
     expectStandardHeaders(headers)
 
-    const movement = await service.db
-      .collection(collectionName('movements'))
+    const collection = await service.db
+      .collection(collectionName('collections'))
       .findOne({ movementId })
 
-    expect(movement).toMatchObject({
+    expect(collection).toMatchObject({
+      _id: expect.any(ObjectId),
       movementId,
       orgId: forwardedOrganisationId,
-      createdAt: expect.any(String)
+      requestId: headers.get('x-request-id'),
+      createdAt: expect.any(Date)
+    })
+    expect(fromPayload(collection.payload)).toEqual({
+      carrier,
+      collectionDateTime,
+      collectionSite,
+      isDutyOfCareConfirmed
     })
   })
 
@@ -301,8 +315,13 @@ describe(apiVersion, () => {
       _id: expect.any(ObjectId),
       deliveryId,
       orgId: forwardedOrganisationId,
+      requestId: headers.get('x-request-id'),
       movementIds: [movementId],
-      createdAt: expect.any(String)
+      wasteType: 'NON_HAZARDOUS',
+      createdAt: expect.any(Date)
+    })
+    expect(fromPayload(delivery.payload)).toMatchObject({
+      movementIds: [movementId]
     })
   })
 
@@ -323,11 +342,11 @@ describe(apiVersion, () => {
       .collection(collectionName('movements'))
       .findOne({ movementId })
 
-    expect(movement).toMatchObject({
-      movementId,
-      wasteItems: [hazardousWasteItem]
-    })
-    expect(movement).not.toHaveProperty('wasteType')
+    expect(movement).toMatchObject({ movementId, isHazardous: true })
+    expect(fromPayload(movement.payload).wasteItems).toEqual([
+      hazardousWasteItem
+    ])
+    expect(movement).not.toHaveProperty('wasteItems')
   })
 
   test(`POST /${apiVersion}/deliveries splits hazardous movements into their own deliveries`, async ({
@@ -339,7 +358,7 @@ describe(apiVersion, () => {
     const hazardousId = await createMovement(hazardousMovement)
     const nonHazardousId2 = await createMovement()
 
-    const { status, body } = await api(`/${apiVersion}/deliveries`, {
+    const { status, body, headers } = await api(`/${apiVersion}/deliveries`, {
       method: 'POST',
       body: {
         movementIds: [nonHazardousId1, hazardousId, nonHazardousId2],
@@ -377,7 +396,9 @@ describe(apiVersion, () => {
         body.data.deliveries.map((delivery) =>
           expect.objectContaining({
             ...delivery,
-            orgId: forwardedOrganisationId
+            orgId: forwardedOrganisationId,
+            // Both were recorded by the one request
+            requestId: headers.get('x-request-id')
           })
         )
       )
@@ -422,15 +443,23 @@ describe(apiVersion, () => {
     })
     expectStandardHeaders(headers)
 
-    const delivery = await service.db
-      .collection(collectionName('deliveries'))
+    const receipt = await service.db
+      .collection(collectionName('receipts'))
       .findOne({ deliveryId })
 
-    expect(delivery).toMatchObject({
+    expect(receipt).toMatchObject({
+      _id: expect.any(ObjectId),
       deliveryId,
       orgId: forwardedOrganisationId,
-      movementIds: [movementId],
-      createdAt: expect.any(String)
+      requestId: headers.get('x-request-id'),
+      createdAt: expect.any(Date)
+    })
+    expect(fromPayload(receipt.payload)).toEqual({
+      receiptDateTime,
+      carrier,
+      receiver,
+      physicalDetails,
+      treatments
     })
   })
 
@@ -467,7 +496,22 @@ describe(apiVersion, () => {
       _id: expect.any(ObjectId),
       deliveryId,
       orgId: forwardedOrganisationId,
-      createdAt: expect.any(String)
+      movementIds: [],
+      wasteType: 'NON_HAZARDOUS',
+      createdAt: expect.any(Date)
+    })
+    const receipt = await service.db
+      .collection(collectionName('receipts'))
+      .findOne({ deliveryId })
+
+    // The empty Delivery keeps the same request as its Receipt
+    expect(receipt).toMatchObject({
+      orgId: forwardedOrganisationId,
+      requestId: delivery.requestId,
+      payloadHash: delivery.payloadHash
+    })
+    expect(fromPayload(receipt.payload)).toMatchObject({
+      reasonForNoDeliveryId
     })
   })
 

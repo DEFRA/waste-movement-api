@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { HTTP_STATUS, backoffOptions } from '@defra/waste-movement-utils'
 import { getTraceId } from '@defra/hapi-tracing'
 import { backOff } from 'exponential-backoff'
+import { withTransaction } from '#/common/data/with-transaction.js'
 import { createDeliveryId } from '#/common/http/waste-tracking.js'
 import { getOrganisationId } from '#/common/organisation.js'
 import { handleBetaRouteError } from '#/common/route-errors.js'
@@ -44,16 +45,25 @@ export const recordReceiptUndocumented = (version) => ({
   },
   handler: async (request, h) => {
     try {
-      const traceId = getTraceId() || randomUUID()
+      const requestId = getTraceId() || randomUUID()
       const orgId = getOrganisationId(request)
       const deliveryId = await createDeliveryId()
 
+      // The empty Delivery and its Receipt are stored together or not at all,
+      // so a retry can't leave a Delivery without its Receipt.
       await backOff(
         () =>
-          version.deliveries.createDeliveryRecord(request.db, {
-            deliveryId,
-            movementIds: [],
-            orgId
+          withTransaction(request.mongoClient, async (session) => {
+            await version.deliveries.createUndocumentedDeliveryRecord(
+              request.db,
+              { deliveryId, orgId, requestId, payload: request.payload },
+              { session }
+            )
+            await version.receipts.createReceiptRecord(
+              request.db,
+              { deliveryId, orgId, requestId, payload: request.payload },
+              { session }
+            )
           }),
         backoffOptions(version.logger)
       )
@@ -67,7 +77,7 @@ export const recordReceiptUndocumented = (version) => ({
       return h
         .response({ data: { deliveryId }, validation: { warnings: [] } })
         .code(HTTP_STATUS.CREATED)
-        .header('x-request-id', traceId)
+        .header('x-request-id', requestId)
         .message('Successfully recorded an undocumented receipt')
     } catch (error) {
       return handleBetaRouteError(error)

@@ -1,0 +1,8 @@
+{
+  "bsonType": "object",
+  "description": "An owner.",
+  "additionalProperties": false,
+  "properties": {
+    "name": { "bsonType": "string", "description": "A name." }
+  }
+}

@@ -28,7 +28,7 @@ export const createMovement = (version) => ({
   },
   handler: async (request, h) => {
     try {
-      const traceId = getTraceId() || randomUUID()
+      const requestId = getTraceId() || randomUUID()
       const orgId = getOrganisationId(request)
       const movementId = await createMovementId()
 
@@ -40,14 +40,11 @@ export const createMovement = (version) => ({
           version.movements.createMovementRecord(request.db, {
             movementId,
             orgId,
-            wasteItems: request.payload.wasteItems
+            requestId,
+            payload: request.payload
           }),
         { movementId }
       )
-      const responseBody = {
-        data: { movementId },
-        validation: { warnings: [] }
-      }
 
       version.logger.info(
         { movementId },
@@ -56,9 +53,9 @@ export const createMovement = (version) => ({
       request.app.journey = [{ movementId }]
 
       return h
-        .response(responseBody)
+        .response({ data: { movementId }, validation: { warnings: [] } })
         .code(HTTP_STATUS.CREATED)
-        .header('x-request-id', traceId)
+        .header('x-request-id', requestId)
         .message('Successfully created a waste movement')
     } catch (error) {
       return handleBetaRouteError(error)
