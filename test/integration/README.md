@@ -88,7 +88,8 @@ test/integration/
   `respondWith({ statusCode })` forces every later call to fail. A `stop()` then `start()` rebinds
   the same port, since the service under test is already configured with it.
 - **`http.js`** — `httpRequest()` adds Basic auth and sends what it's given; `betaHttpRequest()`
-  also forwards the organisation in `x-dwt-organisation-id`, as the external API does. A string
+  also forwards the organisation in `x-dwt-organisation-id`, and the software provider in
+  `x-dwt-client-id` and `x-dwt-client-name`, as the external API does. A string
   `body` is sent as-is, so malformed JSON can be sent on purpose. `x-cdp-request-id` is only sent
   when a `requestId` option is passed; error responses only carry a request ID when one was sent.
 

@@ -1,19 +1,36 @@
-import { MongoClient } from 'mongodb'
+import { MongoClient, ObjectId } from 'mongodb'
+import { DocumentValidationError } from '#/common/data/entity-store.js'
+import { fromPayload, hashPayload } from '#/common/data/payload.js'
 import { syncDataSchemas } from '#/common/data/sync-data-schemas.js'
+import { forwardedClient } from '#test/data/organisation-headers.js'
 import {
   dataSchemas,
   collectionName as versionCollectionName,
   version
 } from '../index.js'
-import { deliveryData } from './deliveries.js'
+import { hazardousWasteItem, wasteItem } from '../schemas/test-helpers.js'
 
 const collectionName = versionCollectionName('deliveries')
 
-const data = deliveryData(collectionName, dataSchemas.delivery)
-const { findDeliveryMovementIds, createDeliveryRecords, createDeliveryRecord } =
-  data
+const { deliveries: data } = version
+const {
+  findDeliveryMovementIds,
+  createDeliveryRecords,
+  createUndocumentedDeliveryRecord
+} = data
 
 const orgId = '57aed195-325e-45d5-b1fb-5f201e0324cf'
+const requestId = 'e4f5a6b7-8293-4a4b-8d5e-6f7a8b9c0d1e'
+const payload = { movementIds: ['25HRA0B1', '25HRA0B2', '25HRA0B4'] }
+const request = { orgId, ...forwardedClient, requestId, payload }
+// An undocumented receipt's delivery keeps the POST /receipts request
+const undocumented = {
+  deliveryId: '25KMT4Z9',
+  orgId,
+  ...forwardedClient,
+  requestId,
+  payload: { reasonForNoDeliveryId: 'No delivery was recorded' }
+}
 
 const failingDb = (error) => ({
   collection: vi.fn().mockImplementation(() => {
@@ -22,18 +39,18 @@ const failingDb = (error) => ({
 })
 
 describe('delivery data', () => {
-  let client
-  let db
-  let deliveriesCollection
+  // Connects on its first operation. The shared in-memory MongoDB is a
+  // replica set, because createDeliveryRecords writes in a transaction.
+  const client = new MongoClient(process.env.MONGO_URI)
+  const db = client.db(`${version.apiVersion}-data-test`)
+  const deliveriesCollection = db.collection(collectionName)
 
-  const store = (deliveryId, movementIds) =>
-    createDeliveryRecord(db, { deliveryId, movementIds, orgId })
+  const store = (deliveryId, movementIds, wasteType = 'NON_HAZARDOUS') =>
+    createDeliveryRecords(db, client, request, [
+      { deliveryId, movementIds, wasteType }
+    ])
 
   beforeAll(async () => {
-    // The shared in-memory MongoDB is a replica set, because
-    // createDeliveryRecords writes in a transaction.
-    client = await MongoClient.connect(process.env.MONGO_URI)
-    db = client.db(`${version.apiVersion}-data-test`)
     await db.dropDatabase()
     await syncDataSchemas(db, [data], version.logger)
 
@@ -46,10 +63,7 @@ describe('delivery data', () => {
     vi.useRealTimers()
   })
 
-  beforeEach(async () => {
-    deliveriesCollection = db.collection(collectionName)
-    await deliveriesCollection.deleteMany({})
-  })
+  beforeEach(() => deliveriesCollection.deleteMany({}))
 
   describe('findDeliveryMovementIds', () => {
     it('returns the movement ids delivered under the delivery id', async () => {
@@ -62,16 +76,16 @@ describe('delivery data', () => {
 
     it('combines and deduplicates every record with the delivery id', async () => {
       // A resubmitted hazardous movement stores a second record
-      await store('25HRZ9X7', ['25HRZ9X7'])
-      await store('25HRZ9X7', ['25HRZ9X7'])
+      await store('25HRZ9X7', ['25HRZ9X7'], 'HAZARDOUS')
+      await store('25HRZ9X7', ['25HRZ9X7'], 'HAZARDOUS')
 
       const result = await findDeliveryMovementIds(db, '25HRZ9X7')
 
       expect(result).toEqual(['25HRZ9X7'])
     })
 
-    it('returns an empty list for a delivery with no movements', async () => {
-      await store('25KMT4Z9', [])
+    it("returns an empty list for an undocumented receipt's delivery", async () => {
+      await createUndocumentedDeliveryRecord(db, undocumented)
 
       const result = await findDeliveryMovementIds(db, '25KMT4Z9')
 
@@ -85,124 +99,129 @@ describe('delivery data', () => {
     })
   })
 
-  describe('createDeliveryRecord', () => {
-    it('should create a delivery in the db and return the deliveryId', async () => {
-      const deliveryId = '25KMT4Z9'
-      const now = new Date().toISOString()
-      const delivery = {
-        deliveryId,
-        movementIds: ['25HRA0B1'],
-        wasteType: 'NON_HAZARDOUS',
-        orgId: '57aed195-325e-45d5-b1fb-5f201e0324cf'
-      }
+  describe('createUndocumentedDeliveryRecord', () => {
+    it("stores an empty delivery with the undocumented receipt's request", async () => {
+      const now = new Date()
 
-      const result = await createDeliveryRecord(db, delivery)
+      const result = await createUndocumentedDeliveryRecord(db, undocumented)
 
-      const recordInDb = await deliveriesCollection.findOne({ deliveryId })
-
-      expect(result).toEqual({
-        deliveryId,
-        movementIds: delivery.movementIds,
-        wasteType: delivery.wasteType
-      })
-      expect(recordInDb).toEqual({
-        _id: expect.any(Object),
+      expect(result).toEqual({ deliveryId: '25KMT4Z9' })
+      expect(
+        await deliveriesCollection.findOne({ deliveryId: '25KMT4Z9' })
+      ).toEqual({
+        _id: expect.any(ObjectId),
+        orgId,
+        ...forwardedClient,
+        requestId,
+        revision: 0,
         createdAt: now,
-        ...delivery
+        updatedAt: now,
+        payload: expect.anything(),
+        payloadHash: hashPayload(undocumented.payload),
+        deliveryId: '25KMT4Z9',
+        movementIds: [],
+        wasteType: 'NON_HAZARDOUS'
       })
     })
 
-    it('is rejected by the collection validator when it does not match the DB schema', async () => {
-      await expect(
-        createDeliveryRecord(db, {
-          deliveryId: '25KMT4Z9',
-          movementIds: [],
-          wasteType: 'UNKNOWN',
-          orgId
-        })
-      ).rejects.toMatchObject({ code: 121 })
+    it("is hazardous when any of the receipt's waste items declares hazardous properties", async () => {
+      await createUndocumentedDeliveryRecord(db, {
+        ...undocumented,
+        payload: { wasteItems: [wasteItem, hazardousWasteItem] }
+      })
 
-      expect(await deliveriesCollection.countDocuments()).toBe(0)
+      expect(
+        await deliveriesCollection.findOne({ deliveryId: '25KMT4Z9' })
+      ).toMatchObject({ wasteType: 'HAZARDOUS' })
     })
 
-    it('should handle database errors', async () => {
+    it('handles database errors', async () => {
       const mockError = new Error('Database error')
 
       await expect(
-        createDeliveryRecord(failingDb(mockError), {
-          deliveryId: '25KMT4Z9',
-          movementIds: [],
-          orgId
-        })
+        createUndocumentedDeliveryRecord(failingDb(mockError), undocumented)
       ).rejects.toThrow(mockError.message)
     })
   })
 
   describe('createDeliveryRecords', () => {
-    const orgId = '57aed195-325e-45d5-b1fb-5f201e0324cf'
-    const deliveries = [
+    const groupings = [
       {
         deliveryId: '25KMT4Z9',
         movementIds: ['25HRA0B1', '25HRA0B2'],
-        wasteType: 'NON_HAZARDOUS',
-        orgId
+        wasteType: 'NON_HAZARDOUS'
       },
       {
         deliveryId: '25HRA0B4',
         movementIds: ['25HRA0B4'],
-        wasteType: 'HAZARDOUS',
-        orgId
+        wasteType: 'HAZARDOUS'
       },
       {
         deliveryId: '25HRA0B3',
         movementIds: ['25HRA0B3'],
-        wasteType: 'HAZARDOUS',
-        orgId
+        wasteType: 'HAZARDOUS'
       }
     ]
 
-    it('inserts every delivery and returns them in input order', async () => {
-      const now = new Date().toISOString()
+    it('stores every delivery in input order, sharing the request and its requestId', async () => {
+      const now = new Date()
 
-      const result = await createDeliveryRecords(db, client, deliveries)
-
-      expect(result).toEqual(
-        deliveries.map(({ deliveryId, movementIds, wasteType }) => ({
-          deliveryId,
-          movementIds,
-          wasteType
-        }))
-      )
+      const result = await createDeliveryRecords(db, client, request, groupings)
 
       const recordsInDb = await deliveriesCollection
-        .find({}, { projection: { _id: 0 } })
+        .find({ requestId })
         .toArray()
 
+      expect(recordsInDb).toEqual(result)
       expect(recordsInDb).toEqual(
-        deliveries.map((delivery) => ({ ...delivery, createdAt: now }))
+        groupings.map((grouping) => ({
+          _id: expect.any(ObjectId),
+          orgId,
+          ...forwardedClient,
+          requestId,
+          revision: 0,
+          createdAt: now,
+          updatedAt: now,
+          payload: expect.anything(),
+          payloadHash: hashPayload(payload),
+          ...grouping
+        }))
       )
+      recordsInDb.forEach((record) =>
+        expect(fromPayload(record.payload)).toEqual(payload)
+      )
+    })
+
+    it('is rejected before the write when it does not match the DB schema', async () => {
+      const [nonHazardous] = groupings
+
+      await expect(
+        createDeliveryRecords(db, client, request, [
+          { ...nonHazardous, wasteType: 'UNKNOWN' }
+        ])
+      ).rejects.toBeInstanceOf(DocumentValidationError)
+
+      expect(await deliveriesCollection.countDocuments()).toBe(0)
     })
 
     describe('when a write fails part-way through the batch', () => {
       // Rejects the second delivery, after the first has been written, then
       // puts the collection's own validator back.
       const schemaValidator = { $jsonSchema: dataSchemas.delivery.schema }
+      const [, second] = groupings
       const setValidator = (validator) =>
         db.command({ collMod: collectionName, validator })
 
       beforeEach(() =>
         setValidator({
-          $and: [
-            schemaValidator,
-            { deliveryId: { $ne: deliveries[1].deliveryId } }
-          ]
+          $and: [schemaValidator, { deliveryId: { $ne: second.deliveryId } }]
         })
       )
       afterEach(() => setValidator(schemaValidator))
 
       it('writes none of the deliveries', async () => {
         await expect(
-          createDeliveryRecords(db, client, deliveries)
+          createDeliveryRecords(db, client, request, groupings)
         ).rejects.toThrow()
 
         expect(await deliveriesCollection.countDocuments()).toBe(0)
@@ -210,26 +229,26 @@ describe('delivery data', () => {
 
       it('leaves exactly one copy of each delivery once a retry succeeds', async () => {
         await expect(
-          createDeliveryRecords(db, client, deliveries)
+          createDeliveryRecords(db, client, request, groupings)
         ).rejects.toThrow()
         await setValidator(schemaValidator)
 
-        await createDeliveryRecords(db, client, deliveries)
+        await createDeliveryRecords(db, client, request, groupings)
 
         const recordsInDb = await deliveriesCollection
           .find({}, { projection: { _id: 0, deliveryId: 1 } })
           .toArray()
         expect(recordsInDb).toEqual(
-          deliveries.map(({ deliveryId }) => ({ deliveryId }))
+          groupings.map(({ deliveryId }) => ({ deliveryId }))
         )
       })
     })
 
-    it('should handle database errors', async () => {
+    it('handles database errors', async () => {
       const mockError = new Error('Database error')
 
       await expect(
-        createDeliveryRecords(failingDb(mockError), client, deliveries)
+        createDeliveryRecords(failingDb(mockError), client, request, groupings)
       ).rejects.toThrow(mockError.message)
     })
   })

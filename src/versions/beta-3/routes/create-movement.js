@@ -3,6 +3,7 @@ import { HTTP_STATUS } from '@defra/waste-movement-utils'
 import { getTraceId } from '@defra/hapi-tracing'
 import { insertWithRetry } from '#/common/data/insert-with-retry.js'
 import { createMovementId } from '#/common/http/waste-tracking.js'
+import { getClient } from '#/common/client.js'
 import { getOrganisationId } from '#/common/organisation.js'
 import { handleBetaRouteError } from '#/common/route-errors.js'
 import { withPayloadChecks } from '#/common/validation/payload-checks.js'
@@ -28,8 +29,9 @@ export const createMovement = (version) => ({
   },
   handler: async (request, h) => {
     try {
-      const traceId = getTraceId() || randomUUID()
+      const requestId = getTraceId() || randomUUID()
       const orgId = getOrganisationId(request)
+      const client = getClient(request)
       const movementId = await createMovementId()
 
       // A retry finding the movementId stored is an earlier attempt that
@@ -40,14 +42,12 @@ export const createMovement = (version) => ({
           version.movements.createMovementRecord(request.db, {
             movementId,
             orgId,
-            wasteItems: request.payload.wasteItems
+            ...client,
+            requestId,
+            payload: request.payload
           }),
         { movementId }
       )
-      const responseBody = {
-        data: { movementId },
-        validation: { warnings: [] }
-      }
 
       version.logger.info(
         { movementId },
@@ -56,9 +56,9 @@ export const createMovement = (version) => ({
       request.app.journey = [{ movementId }]
 
       return h
-        .response(responseBody)
+        .response({ data: { movementId }, validation: { warnings: [] } })
         .code(HTTP_STATUS.CREATED)
-        .header('x-request-id', traceId)
+        .header('x-request-id', requestId)
         .message('Successfully created a waste movement')
     } catch (error) {
       return handleBetaRouteError(error)

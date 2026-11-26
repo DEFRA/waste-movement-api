@@ -1,0 +1,56 @@
+{
+  "title": "Receipt",
+  "description": "A Receipt, as stored in `beta-3-g<N>-receipts` for `POST /deliveries/{deliveryId}/receipt`, or for `POST /receipts` against the empty Delivery it creates.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "_id",
+    "orgId",
+    "clientId",
+    "clientName",
+    "requestId",
+    "revision",
+    "createdAt",
+    "updatedAt",
+    "payload",
+    "payloadHash",
+    "deliveryId"
+  ],
+  "properties": {
+    "_id": {
+      "$ref": "../common/envelope.schema.json#/properties/_id"
+    },
+    "orgId": {
+      "$ref": "../common/envelope.schema.json#/properties/orgId"
+    },
+    "clientId": {
+      "$ref": "../common/envelope.schema.json#/properties/clientId"
+    },
+    "clientName": {
+      "$ref": "../common/envelope.schema.json#/properties/clientName"
+    },
+    "requestId": {
+      "$ref": "../common/envelope.schema.json#/properties/requestId"
+    },
+    "revision": {
+      "$ref": "../common/envelope.schema.json#/properties/revision"
+    },
+    "createdAt": {
+      "$ref": "../common/envelope.schema.json#/properties/createdAt"
+    },
+    "updatedAt": {
+      "$ref": "../common/envelope.schema.json#/properties/updatedAt"
+    },
+    "payload": {
+      "$ref": "../common/envelope.schema.json#/properties/payload",
+      "description": "The `POST /deliveries/{deliveryId}/receipt` or `POST /receipts` request body."
+    },
+    "payloadHash": {
+      "$ref": "../common/envelope.schema.json#/properties/payloadHash"
+    },
+    "deliveryId": {
+      "type": "string",
+      "description": "The Delivery received. Unique: a Delivery's Receipt is recorded once."
+    }
+  }
+}

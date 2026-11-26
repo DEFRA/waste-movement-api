@@ -3,7 +3,12 @@ import { apiCode1 } from '#test/data/api-codes.js'
 import { requestBasicAuthTest1 } from '#test/data/basic-auth.js'
 import { test as routeTest } from '#test/helpers/route-fixtures.js'
 import { breakNextResponse } from '#test/helpers/break-next-response.js'
-import { organisationHeaders } from '#test/data/organisation-headers.js'
+import {
+  forwardedClient,
+  forwardedOrganisationId,
+  forwardedHeaders
+} from '#test/data/organisation-headers.js'
+import { fromPayload } from '#/common/data/payload.js'
 import {
   brokerOrDealerEntry,
   carrier,
@@ -12,7 +17,8 @@ import {
   supportingReference,
   longText
 } from '../schemas/test-helpers.js'
-import { version } from '../index.js'
+import { storeMovements } from '../data/test-helpers.js'
+import { collectionName, version } from '../index.js'
 
 const { apiVersion } = version
 
@@ -48,7 +54,7 @@ const test = routeTest.extend({
         headers: {
           'x-cdp-request-id': traceId,
           Authorization: `Basic ${requestBasicAuthTest1}`,
-          ...organisationHeaders
+          ...forwardedHeaders
         }
       })
     )
@@ -85,6 +91,11 @@ const test = routeTest.extend({
 })
 
 describe(`collection Route Tests version: ${apiVersion}`, () => {
+  // A Movement is collected once, so each test starts with none recorded
+  test.beforeEach(async ({ server }) => {
+    await server.db.collection(collectionName('collections')).deleteMany({})
+  })
+
   // Scenario: A Collection is created when a carrier confirms duty of care.
   test('creates a collection when a valid movementId is provided', async ({
     server
@@ -99,7 +110,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       payload: goodPayload,
       headers: {
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -109,6 +120,99 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       validation: { warnings: [] }
     })
     expect(getMovementRecordSpy).toHaveBeenCalledTimes(1)
+  })
+
+  test('stores the request as sent against its movement', async ({
+    server,
+    submitCollection
+  }) => {
+    await storeMovements(server.db, [goodMovementId])
+
+    const { statusCode } = await submitCollection(goodPayload)
+
+    expect(statusCode).toEqual(HTTP_STATUS.CREATED)
+    const recordInDb = await server.db
+      .collection(collectionName('collections'))
+      .findOne({ movementId: goodMovementId })
+
+    expect(recordInDb).toMatchObject({
+      orgId: forwardedOrganisationId,
+      ...forwardedClient,
+      requestId: traceId,
+      revision: 0
+    })
+    expect(fromPayload(recordInDb.payload)).toEqual(goodPayload)
+  })
+
+  test('returns a 409, keeping the first collection, when the movement has already been collected', async ({
+    server,
+    submitCollection
+  }) => {
+    vi.spyOn(movementService, 'getMovementRecord').mockResolvedValue({
+      movementId: goodMovementId
+    })
+
+    expect((await submitCollection(goodPayload)).statusCode).toEqual(
+      HTTP_STATUS.CREATED
+    )
+    const { statusCode, result } = await submitCollection({
+      ...goodPayload,
+      supportingReferences: [supportingReference]
+    })
+
+    expect(statusCode).toEqual(HTTP_STATUS.CONFLICT)
+    expect(result).toEqual({
+      type: `${expectedTypeBase}conflict`,
+      title: 'Conflict',
+      detail: `A collection has already been recorded for movement ID: ${goodMovementId}`,
+      instance: `/${apiVersion}/movements/${goodMovementId}/collection`,
+      requestId: traceId
+    })
+    const collections = await server.db
+      .collection(collectionName('collections'))
+      .find({ movementId: goodMovementId })
+      .toArray()
+    const [collection] = collections
+    expect(collections).toHaveLength(1)
+    expect(fromPayload(collection.payload)).toEqual(goodPayload)
+  })
+
+  test('returns 201 again, storing nothing more, when the same collection is resubmitted', async ({
+    server,
+    submitCollection
+  }) => {
+    vi.spyOn(movementService, 'getMovementRecord').mockResolvedValue({
+      movementId: goodMovementId
+    })
+    // The same request with its keys in another order, as a retry might be
+    const reordered = Object.fromEntries(Object.entries(goodPayload).reverse())
+
+    await submitCollection(goodPayload)
+    const { statusCode, result } = await submitCollection(reordered)
+
+    expect(statusCode).toEqual(HTTP_STATUS.CREATED)
+    expect(result).toEqual({ data: null, validation: { warnings: [] } })
+    expect(
+      await server.db
+        .collection(collectionName('collections'))
+        .countDocuments({ movementId: goodMovementId })
+    ).toBe(1)
+  })
+
+  test('returns a 500 when persisting the collection fails', async ({
+    submitCollection
+  }) => {
+    vi.spyOn(movementService, 'getMovementRecord').mockResolvedValue({
+      movementId: goodMovementId
+    })
+    vi.spyOn(version.collections, 'createCollectionRecord').mockRejectedValue(
+      new Error(errorMessage)
+    )
+
+    const { statusCode, result } = await submitCollection(goodPayload)
+
+    expect(statusCode).toEqual(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    expect(result).toMatchObject({ title: 'Internal Server Error' })
   })
 
   test('creates a collection when a brokerOrDealer is declared', async ({
@@ -131,7 +235,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       payload,
       headers: {
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -162,7 +266,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -196,7 +300,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -231,7 +335,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       payload,
       headers: {
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -262,7 +366,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -298,7 +402,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       payload,
       headers: {
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -326,7 +430,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -378,7 +482,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       payload: goodPayload,
       headers: {
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -407,7 +511,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -442,7 +546,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -478,7 +582,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -515,7 +619,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -549,7 +653,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -604,7 +708,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 

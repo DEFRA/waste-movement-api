@@ -5,4 +5,4 @@
 // syncDataSchemas). On its next boot it starts on new, empty collections. The
 // old generation's are left behind, not dropped. There is no migration — beta
 // data is disposable.
-export const DATA_GENERATION = 1
+export const DATA_GENERATION = 2

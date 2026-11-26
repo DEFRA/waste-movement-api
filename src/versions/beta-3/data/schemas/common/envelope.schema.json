@@ -1,0 +1,48 @@
+{
+  "title": "Envelope",
+  "description": "The fields every stored document carries, whatever its entity. Not a collection's schema itself: each entity's schema refers to these fields one by one.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "_id": {
+      "bsonType": "objectId",
+      "description": "Internal to MongoDB and never exposed: the entity's public ID is a field of its own."
+    },
+    "orgId": {
+      "type": "string",
+      "description": "The ID of the organisation that submitted the request."
+    },
+    "clientId": {
+      "type": "string",
+      "description": "The software provider that sent the request: the `client_id` of its Cognito token, which the external API forwards. Independent of `orgId`, as an organisation can use more than one software provider, or switch."
+    },
+    "clientName": {
+      "type": ["string", "null"],
+      "description": "The software provider's name when the request was sent, as the external API looked it up for `clientId`; null when it couldn't. A snapshot, to debug with: the name can change, `clientId` doesn't."
+    },
+    "requestId": {
+      "type": "string",
+      "description": "The `x-request-id` the API returned to the request that created the document. Never changed, so it links the documents one request created."
+    },
+    "revision": {
+      "bsonType": "int",
+      "description": "The document's revision: 0 when it's created. It will be driven by a history collection once documents can be updated."
+    },
+    "createdAt": {
+      "bsonType": "date",
+      "description": "When the document was created."
+    },
+    "updatedAt": {
+      "bsonType": "date",
+      "description": "When the document was last written; its createdAt until it's updated."
+    },
+    "payload": {
+      "bsonType": "binData",
+      "description": "The request body as UTF-8 JSON: the parsed body serialised again, so the same data as sent though not necessarily the same bytes. Never queried or edited; the other fields can be worked out from it again."
+    },
+    "payloadHash": {
+      "type": "string",
+      "description": "SHA-256, as hex, of the request body's JSON with every object's keys sorted: the same however a resubmission orders or spaces its keys, so it tells the same request sent again from a different one."
+    }
+  }
+}

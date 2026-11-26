@@ -3,7 +3,12 @@ import { apiCode1 } from '#test/data/api-codes.js'
 import { requestBasicAuthTest1 } from '#test/data/basic-auth.js'
 import { test as routeTest } from '#test/helpers/route-fixtures.js'
 import { breakNextResponse } from '#test/helpers/break-next-response.js'
-import { organisationHeaders } from '#test/data/organisation-headers.js'
+import {
+  forwardedClient,
+  forwardedOrganisationId,
+  forwardedHeaders
+} from '#test/data/organisation-headers.js'
+import { fromPayload } from '#/common/data/payload.js'
 import {
   receiptDateTime,
   brokerOrDealerEntry,
@@ -11,7 +16,8 @@ import {
   carrier,
   receiver,
   physicalDetails,
-  treatment
+  treatment,
+  wasteItem
 } from '../schemas/test-helpers.js'
 import { storeDelivery } from '../data/test-helpers.js'
 import { collectionName, version } from '../index.js'
@@ -49,7 +55,7 @@ const tracedHeaders = { 'x-cdp-request-id': traceId }
 const tracedAuthHeaders = {
   ...authHeaders,
   ...tracedHeaders,
-  ...organisationHeaders
+  ...forwardedHeaders
 }
 
 const expectedTypeBase =
@@ -71,7 +77,7 @@ const test = routeTest.extend({
   // Records the delivery, then expects a receipt against it to be accepted
   expectCreated: async ({ server, submit }, use) => {
     await use(async (payload) => {
-      await storeDelivery(server.db, deliveryId)
+      await storeDelivery(server, deliveryId)
 
       const { statusCode, result } = await submit(payload)
 
@@ -83,7 +89,7 @@ const test = routeTest.extend({
   // Records the delivery, then expects a receipt against it to be rejected
   expectRejected: async ({ server, submit }, use) => {
     await use(async (payload, errors) => {
-      await storeDelivery(server.db, deliveryId)
+      await storeDelivery(server, deliveryId)
 
       const { statusCode, result } = await submit(payload)
 
@@ -96,12 +102,13 @@ const test = routeTest.extend({
 describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
   test.beforeEach(async ({ server }) => {
     await server.db.collection(collectionName('deliveries')).deleteMany({})
+    await server.db.collection(collectionName('receipts')).deleteMany({})
   })
 
   test('acknowledges receipt against an existing delivery and returns 201 with the envelope shape', async ({
     server
   }) => {
-    await storeDelivery(server.db, deliveryId)
+    await storeDelivery(server, deliveryId)
 
     const { statusCode, result, headers } = await server.inject({
       method: 'POST',
@@ -124,11 +131,205 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
     expect(headers['x-request-id']).toBeDefined()
   })
 
+  test('stores the request as sent against its delivery', async ({
+    server
+  }) => {
+    await storeDelivery(server, deliveryId)
+    const payload = {
+      receiptDateTime,
+      carrier,
+      receiver,
+      physicalDetails,
+      treatments
+    }
+
+    const { statusCode } = await server.inject({
+      method: 'POST',
+      url,
+      payload,
+      headers: tracedAuthHeaders
+    })
+
+    expect(statusCode).toEqual(HTTP_STATUS.CREATED)
+    const recordInDb = await server.db
+      .collection(collectionName('receipts'))
+      .findOne({ deliveryId })
+
+    expect(recordInDb).toMatchObject({
+      orgId: forwardedOrganisationId,
+      ...forwardedClient,
+      requestId: traceId,
+      revision: 0
+    })
+    expect(fromPayload(recordInDb.payload)).toEqual(payload)
+  })
+
+  test('returns a 409, keeping the first receipt, when the delivery has already been received', async ({
+    server
+  }) => {
+    await storeDelivery(server, deliveryId)
+    const payload = {
+      receiptDateTime,
+      carrier,
+      receiver,
+      physicalDetails,
+      treatments
+    }
+    const submit = (body) =>
+      server.inject({
+        method: 'POST',
+        url,
+        payload: body,
+        headers: tracedAuthHeaders
+      })
+
+    expect((await submit(payload)).statusCode).toEqual(HTTP_STATUS.CREATED)
+    const { statusCode, result } = await submit({
+      ...payload,
+      treatments: [...treatments, ...treatments]
+    })
+
+    expect(statusCode).toEqual(HTTP_STATUS.CONFLICT)
+    expect(result).toEqual({
+      type: `${expectedTypeBase}conflict`,
+      title: 'Conflict',
+      detail: `A receipt has already been recorded for delivery ID: ${deliveryId}`,
+      instance: url,
+      requestId: traceId
+    })
+    const receipts = await server.db
+      .collection(collectionName('receipts'))
+      .find({ deliveryId })
+      .toArray()
+    const [receipt] = receipts
+    expect(receipts).toHaveLength(1)
+    expect(fromPayload(receipt.payload)).toEqual(payload)
+  })
+
+  test('returns 201 again, storing nothing more, when the same receipt is resubmitted', async ({
+    server
+  }) => {
+    await storeDelivery(server, deliveryId)
+    const submit = (payload) =>
+      server.inject({
+        method: 'POST',
+        url,
+        payload,
+        headers: tracedAuthHeaders
+      })
+
+    await submit({
+      receiptDateTime,
+      carrier,
+      receiver,
+      physicalDetails,
+      treatments
+    })
+    // The same request with its keys in another order, as a retry might be
+    const { statusCode, result } = await submit({
+      treatments,
+      physicalDetails,
+      receiver,
+      carrier,
+      receiptDateTime
+    })
+
+    expect(statusCode).toEqual(HTTP_STATUS.CREATED)
+    expect(result).toEqual({
+      data: { deliveryId },
+      validation: { warnings: [] }
+    })
+    expect(
+      await server.db
+        .collection(collectionName('receipts'))
+        .countDocuments({ deliveryId })
+    ).toBe(1)
+  })
+
+  test('returns a 409 for the delivery an undocumented receipt created', async ({
+    server
+  }) => {
+    const undocumented = await server.inject({
+      method: 'POST',
+      url: `/${apiVersion}/receipts`,
+      payload: {
+        receiptDateTime,
+        reasonForNoDeliveryId: 'No delivery was recorded',
+        carrier,
+        receiver,
+        wasteItems: [{ ...wasteItem, treatments }]
+      },
+      headers: tracedAuthHeaders
+    })
+    expect(undocumented.statusCode).toEqual(HTTP_STATUS.CREATED)
+
+    const { statusCode } = await server.inject({
+      method: 'POST',
+      url,
+      payload: {
+        receiptDateTime,
+        carrier,
+        receiver,
+        physicalDetails,
+        treatments
+      },
+      headers: tracedAuthHeaders
+    })
+
+    expect(statusCode).toEqual(HTTP_STATUS.CONFLICT)
+  })
+
+  test('returns a 500 when persisting the receipt fails for another reason', async ({
+    server
+  }) => {
+    await storeDelivery(server, deliveryId)
+    vi.spyOn(version.receipts, 'createReceiptRecord').mockRejectedValue(
+      new Error('Database connection failed')
+    )
+
+    const { statusCode } = await server.inject({
+      method: 'POST',
+      url,
+      payload: {
+        receiptDateTime,
+        carrier,
+        receiver,
+        physicalDetails,
+        treatments
+      },
+      headers: tracedAuthHeaders
+    })
+
+    expect(statusCode).toEqual(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+  })
+
+  test('stores nothing when the delivery does not exist', async ({
+    server
+  }) => {
+    const { statusCode } = await server.inject({
+      method: 'POST',
+      url,
+      payload: {
+        receiptDateTime,
+        carrier,
+        receiver,
+        physicalDetails,
+        treatments
+      },
+      headers: tracedAuthHeaders
+    })
+
+    expect(statusCode).toEqual(HTTP_STATUS.NOT_FOUND)
+    expect(
+      await server.db.collection(collectionName('receipts')).countDocuments()
+    ).toBe(0)
+  })
+
   // Scenario: A Receipt is created when more than one treatment is declared.
   test('acknowledges receipt when more than one treatment is declared', async ({
     server
   }) => {
-    await storeDelivery(server.db, deliveryId)
+    await storeDelivery(server, deliveryId)
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
@@ -153,7 +354,7 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
   test('acknowledges receipt when a brokerOrDealer and supportingReferences are provided', async ({
     server
   }) => {
-    await storeDelivery(server.db, deliveryId)
+    await storeDelivery(server, deliveryId)
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
@@ -231,7 +432,7 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
   test('echoes the inbound x-cdp-request-id as x-request-id', async ({
     server
   }) => {
-    await storeDelivery(server.db, deliveryId)
+    await storeDelivery(server, deliveryId)
 
     const { headers } = await server.inject({
       method: 'POST',
@@ -245,7 +446,7 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
       },
       headers: {
         ...authHeaders,
-        ...organisationHeaders,
+        ...forwardedHeaders,
         'x-cdp-request-id': 'trace-id-123'
       }
     })
@@ -486,7 +687,7 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
   test('returns a 400 when no organisation was forwarded (unknown or disabled API code)', async ({
     server
   }) => {
-    await storeDelivery(server.db, deliveryId)
+    await storeDelivery(server, deliveryId)
 
     const { statusCode, result } = await server.inject({
       method: 'POST',
@@ -566,7 +767,7 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
   test('returns a 500 when the response body does not match the response schema', async ({
     server
   }) => {
-    await storeDelivery(server.db, deliveryId)
+    await storeDelivery(server, deliveryId)
     breakNextResponse(server, (body) => ({ ...body, data: {} }))
 
     const { statusCode, result } = await server.inject({
@@ -672,7 +873,7 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
   test('logs a rejected receipt against the Movements delivered under it', async ({
     server
   }) => {
-    await storeDelivery(server.db, deliveryId, ['25HRA0B1', '25HRA0B2'])
+    await storeDelivery(server, deliveryId, ['25HRA0B1', '25HRA0B2'])
     const info = vi.spyOn(createLogger(), 'info')
 
     const { statusCode } = await server.inject({

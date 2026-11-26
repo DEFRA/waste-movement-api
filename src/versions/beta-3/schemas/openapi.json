@@ -297,7 +297,7 @@
       "post": {
         "tags": ["Collection"],
         "summary": "Record the Collection for a Movement",
-        "description": "Records the Collection for the given Movement.",
+        "description": "Records the Collection for the given Movement. A Movement is collected once: the same request again succeeds without storing anything, and a different second Collection is a 409.",
         "operationId": "recordCollection",
         "requestBody": {
           "required": true,
@@ -363,6 +363,28 @@
                   "type": "https://defra.github.io/digital-waste-tracking-api-site/preview/problems/not-found",
                   "title": "Not Found",
                   "detail": "movementId not found",
+                  "instance": "/movements/25HRA0B2/collection",
+                  "requestId": "4c6f9e1a-8f2b-4e3d-9a1c-2b7d5e6f0a3c"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A different Collection has already been recorded for the Movement.",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/problemDetails"
+                },
+                "example": {
+                  "type": "https://defra.github.io/digital-waste-tracking-api-site/preview/problems/conflict",
+                  "title": "Conflict",
+                  "detail": "A collection has already been recorded for movement ID: 25HRA0B2",
                   "instance": "/movements/25HRA0B2/collection",
                   "requestId": "4c6f9e1a-8f2b-4e3d-9a1c-2b7d5e6f0a3c"
                 }
@@ -507,7 +529,7 @@
       "post": {
         "tags": ["Receipt"],
         "summary": "Record receipt of waste against a Delivery",
-        "description": "Records receipt of the waste delivered under the given Delivery.",
+        "description": "Records receipt of the waste delivered under the given Delivery. A Delivery is received once: the same request again succeeds without storing anything, and a different second receipt is a 409.",
         "operationId": "recordReceipt",
         "requestBody": {
           "required": true,
@@ -567,6 +589,28 @@
                   "type": "https://defra.github.io/digital-waste-tracking-api-site/preview/problems/not-found",
                   "title": "Not Found",
                   "detail": "No delivery exists with delivery ID: 25KMT4Z9",
+                  "instance": "/deliveries/25KMT4Z9/receipt",
+                  "requestId": "4c6f9e1a-8f2b-4e3d-9a1c-2b7d5e6f0a3c"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A different Receipt has already been recorded for the Delivery.",
+            "headers": {
+              "x-request-id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/problemDetails"
+                },
+                "example": {
+                  "type": "https://defra.github.io/digital-waste-tracking-api-site/preview/problems/conflict",
+                  "title": "Conflict",
+                  "detail": "A receipt has already been recorded for delivery ID: 25KMT4Z9",
                   "instance": "/deliveries/25KMT4Z9/receipt",
                   "requestId": "4c6f9e1a-8f2b-4e3d-9a1c-2b7d5e6f0a3c"
                 }

@@ -48,3 +48,61 @@ on an existing collection.
 from any client. Checking only collection metadata keeps boot fast however much is stored, and
 needs only the `readWrite` role; never changing an existing collection means there's no deciding
 which changes are safe.
+
+## A document keeps its request, plus only the fields the logic needs
+
+Every stored document holds the request body (`payload`, UTF-8 JSON bytes), an envelope, and
+only the business fields a lookup or rule reads: a Movement keeps `isHazardous`, not its waste items.
+Each data module picks those fields explicitly when it builds the document; there are no separate
+API ↔ DB mappers, as every response today holds only IDs and routes build them inline. Add a mapper
+when a read endpoint needs a response built from `payload`.
+
+`payload` is the parsed body serialised again, so it's the same data as sent but not necessarily the
+same bytes (see the schema README).
+
+**Why:** the stored request is always the data the client sent, and the business fields stay small
+and can change freely, since they can be worked out from the payload again.
+
+## `_id` is internal; `requestId` links what one request created
+
+Every document's `_id` is a generated ObjectId that's never exposed. Public IDs (`movementId`,
+`deliveryId`) are fields of their own, with their own indexes. Instead of a `traceId` for the last
+writer, a document has the `requestId` of the request that created it, which is the `x-request-id`
+the API returned and never changes.
+
+**Why:** the public IDs aren't always unique (a resubmitted hazardous Movement's Delivery ID repeats),
+and keeping them out of `_id` leaves room to change that. A `requestId` that never changes is what
+ties together the several Deliveries one `POST /deliveries` records, and a client can quote it from
+the response. Later writers will be recorded by a history collection, once documents can be updated.
+
+## A document records the software provider as well as the organisation
+
+Beside `orgId`, every document has the `clientId` of the software provider that sent the request (its
+Cognito token's `client_id`, forwarded by the external API) and its `clientName` at the time, or null
+when the external API couldn't look it up. A missing client ID is a 500, not a 400: the external API
+rejects a token without one, so it's a fault between the two services, not the caller's.
+
+**Why:** an organisation can use more than one software provider, or switch, and what's sent can differ
+between them, so knowing which sent a request helps to debug it. The ID is what to query by; the name
+can change, so it's a snapshot, kept only to read. Neither takes part in telling a resubmission from a
+conflict: the same organisation's same request through another provider is still the same request.
+
+## A Movement is collected once and a Delivery received once; a different second one is a 409
+
+A Collection's `movementId` and a Receipt's `deliveryId` each have a unique index. When a
+`POST /movements/{movementId}/collection` or `POST /deliveries/{deliveryId}/receipt` finds the key taken,
+the stored document's `orgId` and `payloadHash` decide (see `insertOnce`): the same organisation's same
+request is answered `201` again and nothing more is stored; anything else is `409 Conflict`, and the
+first is kept. The index also stops two concurrent requests both storing one.
+
+`payloadHash` is SHA-256 of the request's JSON with every object's keys sorted, so a retry that orders
+or spaces its keys differently is still the same request. An array's order is meaning, so it counts.
+
+**Why:** a client retrying a request whose response it lost must not be told it conflicts with itself,
+while a different second Collection or Receipt is a conflict with the stored state, not a malformed
+request, and `409` says so. This departs from the
+[API standards](../../digital-waste-tracking-api-docs/docs/api/standards.md) §1, which hold off on
+`409` and keep `400` for every client error.
+
+**Risk accepted:** an undocumented receipt (`POST /receipts`) mints a new Delivery ID every time, so it
+has no key to find a resubmission by, and a retry records a second one.

@@ -1,0 +1,56 @@
+{
+  "title": "Collection",
+  "description": "A Collection, as stored in `beta-3-g<N>-collections` for `POST /movements/{movementId}/collection`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "_id",
+    "orgId",
+    "clientId",
+    "clientName",
+    "requestId",
+    "revision",
+    "createdAt",
+    "updatedAt",
+    "payload",
+    "payloadHash",
+    "movementId"
+  ],
+  "properties": {
+    "_id": {
+      "$ref": "../common/envelope.schema.json#/properties/_id"
+    },
+    "orgId": {
+      "$ref": "../common/envelope.schema.json#/properties/orgId"
+    },
+    "clientId": {
+      "$ref": "../common/envelope.schema.json#/properties/clientId"
+    },
+    "clientName": {
+      "$ref": "../common/envelope.schema.json#/properties/clientName"
+    },
+    "requestId": {
+      "$ref": "../common/envelope.schema.json#/properties/requestId"
+    },
+    "revision": {
+      "$ref": "../common/envelope.schema.json#/properties/revision"
+    },
+    "createdAt": {
+      "$ref": "../common/envelope.schema.json#/properties/createdAt"
+    },
+    "updatedAt": {
+      "$ref": "../common/envelope.schema.json#/properties/updatedAt"
+    },
+    "payload": {
+      "$ref": "../common/envelope.schema.json#/properties/payload",
+      "description": "The `POST /movements/{movementId}/collection` request body."
+    },
+    "payloadHash": {
+      "$ref": "../common/envelope.schema.json#/properties/payloadHash"
+    },
+    "movementId": {
+      "type": "string",
+      "description": "The Movement collected. Unique: a Movement's Collection is recorded once."
+    }
+  }
+}

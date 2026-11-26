@@ -3,8 +3,9 @@ import { apiCode1 } from '#test/data/api-codes.js'
 import { requestBasicAuthTest1 } from '#test/data/basic-auth.js'
 import { test as routeTest } from '#test/helpers/route-fixtures.js'
 import {
+  forwardedClient,
   forwardedOrganisationId,
-  organisationHeaders
+  forwardedHeaders
 } from '#test/data/organisation-headers.js'
 import {
   receiptDateTime,
@@ -23,6 +24,7 @@ import {
   treatment,
   wasteItem
 } from '../schemas/test-helpers.js'
+import { fromPayload } from '#/common/data/payload.js'
 import { createDeliveryId } from '#/common/http/waste-tracking.js'
 import { collectionName, version } from '../index.js'
 
@@ -60,7 +62,7 @@ const tracedHeaders = { 'x-cdp-request-id': traceId }
 const tracedAuthHeaders = {
   ...authHeaders,
   ...tracedHeaders,
-  ...organisationHeaders
+  ...forwardedHeaders
 }
 
 const expectedTypeBase =
@@ -82,10 +84,10 @@ const test = routeTest.extend({
     )
   },
 
-  // How many receipts (deliveries) are stored
+  // How many receipts are stored
   storedReceipts: async ({ server }, use) => {
     await use(() =>
-      server.db.collection(collectionName('deliveries')).countDocuments()
+      server.db.collection(collectionName('receipts')).countDocuments()
     )
   },
 
@@ -115,21 +117,24 @@ const test = routeTest.extend({
 describe(`POST /${apiVersion}/receipts`, () => {
   test.beforeEach(async ({ server }) => {
     await server.db.collection(collectionName('deliveries')).deleteMany({})
+    await server.db.collection(collectionName('receipts')).deleteMany({})
   })
 
   test('mints an empty delivery, acknowledges receipt against it and returns 201 with the envelope shape', async ({
     server
   }) => {
+    const payload = {
+      receiptDateTime,
+      reasonForNoDeliveryId,
+      carrier,
+      receiver,
+      wasteItems
+    }
+
     const { statusCode, result, headers } = await server.inject({
       method: 'POST',
       url,
-      payload: {
-        receiptDateTime,
-        reasonForNoDeliveryId,
-        carrier,
-        receiver,
-        wasteItems
-      },
+      payload,
       headers: tracedAuthHeaders
     })
 
@@ -147,8 +152,48 @@ describe(`POST /${apiVersion}/receipts`, () => {
     expect(deliveryInDb).toMatchObject({
       deliveryId: '25KMT4Z9',
       movementIds: [],
-      orgId: forwardedOrganisationId
+      wasteType: 'NON_HAZARDOUS',
+      orgId: forwardedOrganisationId,
+      ...forwardedClient,
+      requestId: traceId
     })
+    // The empty Delivery keeps the request, as its Receipt does
+    expect(fromPayload(deliveryInDb.payload)).toEqual(payload)
+
+    const receiptInDb = await server.db
+      .collection(collectionName('receipts'))
+      .findOne({ deliveryId: '25KMT4Z9' })
+
+    expect(receiptInDb).toMatchObject({
+      orgId: forwardedOrganisationId,
+      ...forwardedClient,
+      requestId: traceId
+    })
+    expect(fromPayload(receiptInDb.payload)).toEqual(payload)
+  })
+
+  test('stores neither the delivery nor the receipt when the receipt fails', async ({
+    server,
+    submit,
+    storedReceipts
+  }) => {
+    vi.spyOn(version.receipts, 'createReceiptRecord').mockRejectedValue(
+      new Error('Database connection failed')
+    )
+
+    const { statusCode } = await submit({
+      receiptDateTime,
+      reasonForNoDeliveryId,
+      carrier,
+      receiver,
+      wasteItems
+    })
+
+    expect(statusCode).toEqual(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    expect(
+      await server.db.collection(collectionName('deliveries')).countDocuments()
+    ).toBe(0)
+    expect(await storedReceipts()).toBe(0)
   })
 
   // Scenario: A Receipt is created when more than one treatment is declared.
@@ -496,7 +541,7 @@ describe(`POST /${apiVersion}/receipts`, () => {
     server
   }) => {
     const error = 'Database connection failed'
-    vi.spyOn(delivery, 'createDeliveryRecord').mockRejectedValue(
+    vi.spyOn(delivery, 'createUndocumentedDeliveryRecord').mockRejectedValue(
       new Error(error)
     )
 
@@ -550,8 +595,12 @@ describe(`POST /${apiVersion}/receipts`, () => {
     server
   }) => {
     vi.mocked(createDeliveryId).mockResolvedValueOnce(42)
-    // Stubbed so the bad id isn't rejected by the deliveries collection first.
-    vi.spyOn(delivery, 'createDeliveryRecord').mockResolvedValueOnce({})
+    // Stubbed so the bad id isn't rejected by the DB schemas first.
+    vi.spyOn(
+      delivery,
+      'createUndocumentedDeliveryRecord'
+    ).mockResolvedValueOnce({})
+    vi.spyOn(version.receipts, 'createReceiptRecord').mockResolvedValueOnce({})
 
     const { statusCode, result } = await server.inject({
       method: 'POST',

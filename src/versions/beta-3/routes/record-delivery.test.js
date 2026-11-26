@@ -3,8 +3,9 @@ import { apiCode1 } from '#test/data/api-codes.js'
 import { requestBasicAuthTest1 } from '#test/data/basic-auth.js'
 import { test as routeTest } from '#test/helpers/route-fixtures.js'
 import {
+  forwardedClient,
   forwardedOrganisationId,
-  organisationHeaders
+  forwardedHeaders
 } from '#test/data/organisation-headers.js'
 import {
   supportingReference,
@@ -51,7 +52,7 @@ const tracedHeaders = { 'x-cdp-request-id': traceId }
 const tracedAuthHeaders = {
   ...authHeaders,
   ...tracedHeaders,
-  ...organisationHeaders
+  ...forwardedHeaders
 }
 
 const expectedTypeBase =
@@ -70,12 +71,26 @@ const test = routeTest.extend({
     )
   },
 
-  // The stored deliveries, without their generated fields
+  // The stored deliveries, without their generated fields or payload
   findDeliveries: async ({ server }, use) => {
     await use(() =>
       server.db
         .collection(collectionName('deliveries'))
-        .find({}, { projection: { _id: 0, createdAt: 0 } })
+        .find(
+          {},
+          {
+            projection: {
+              _id: 0,
+              orgId: 1,
+              clientId: 1,
+              clientName: 1,
+              requestId: 1,
+              deliveryId: 1,
+              movementIds: 1,
+              wasteType: 1
+            }
+          }
+        )
         .toArray()
     )
   },
@@ -137,7 +152,8 @@ describe(`POST /${apiVersion}/deliveries`, () => {
       deliveryId: '25KMT4Z9',
       movementIds: [movementId1, movementId2],
       wasteType: 'NON_HAZARDOUS',
-      orgId: forwardedOrganisationId
+      orgId: forwardedOrganisationId,
+      ...forwardedClient
     })
   })
 
@@ -678,8 +694,11 @@ describe(`POST /${apiVersion}/deliveries`, () => {
         expect(createDeliveryId).toHaveBeenCalledTimes(nextCalls)
         expect(await findDeliveries()).toEqual(
           expected.map((item) => ({
-            ...item,
-            orgId: forwardedOrganisationId
+            orgId: forwardedOrganisationId,
+            ...forwardedClient,
+            // Every Delivery one request recorded shares its x-request-id
+            requestId: traceId,
+            ...item
           }))
         )
       }
