@@ -16,6 +16,24 @@ import { wasteReferenceDataChecks } from '../checks/waste-reference-data-checks.
 
 const receiptDateTime = ['receiptDateTime']
 
+// The empty Delivery and its Receipt are stored together or not at all, so a
+// retry can't leave a Delivery without its Receipt. Both keep the request.
+const storeUndocumentedReceipt = (version, request, record) =>
+  backOff(
+    () =>
+      withTransaction(request.mongoClient, async (session) => {
+        await version.deliveries.createUndocumentedDeliveryRecord(
+          request.db,
+          record,
+          { session }
+        )
+        await version.receipts.createReceiptRecord(request.db, record, {
+          session
+        })
+      }),
+    backoffOptions(version.logger)
+  )
+
 export const recordReceiptUndocumented = (version) => ({
   method: 'POST',
   path: '/receipts',
@@ -51,36 +69,13 @@ export const recordReceiptUndocumented = (version) => ({
       const client = getClient(request)
       const deliveryId = await createDeliveryId()
 
-      // The empty Delivery and its Receipt are stored together or not at all,
-      // so a retry can't leave a Delivery without its Receipt.
-      await backOff(
-        () =>
-          withTransaction(request.mongoClient, async (session) => {
-            await version.deliveries.createUndocumentedDeliveryRecord(
-              request.db,
-              {
-                deliveryId,
-                orgId,
-                ...client,
-                requestId,
-                payload: request.payload
-              },
-              { session }
-            )
-            await version.receipts.createReceiptRecord(
-              request.db,
-              {
-                deliveryId,
-                orgId,
-                ...client,
-                requestId,
-                payload: request.payload
-              },
-              { session }
-            )
-          }),
-        backoffOptions(version.logger)
-      )
+      await storeUndocumentedReceipt(version, request, {
+        deliveryId,
+        orgId,
+        ...client,
+        requestId,
+        payload: request.payload
+      })
 
       version.logger.info(
         { deliveryId },
