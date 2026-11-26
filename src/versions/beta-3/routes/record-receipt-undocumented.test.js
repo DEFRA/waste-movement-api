@@ -3,8 +3,9 @@ import { apiCode1 } from '#test/data/api-codes.js'
 import { requestBasicAuthTest1 } from '#test/data/basic-auth.js'
 import { test as routeTest } from '#test/helpers/route-fixtures.js'
 import {
+  forwardedClient,
   forwardedOrganisationId,
-  organisationHeaders
+  forwardedHeaders
 } from '#test/data/organisation-headers.js'
 import {
   receiptDateTime,
@@ -61,7 +62,7 @@ const tracedHeaders = { 'x-cdp-request-id': traceId }
 const tracedAuthHeaders = {
   ...authHeaders,
   ...tracedHeaders,
-  ...organisationHeaders
+  ...forwardedHeaders
 }
 
 const expectedTypeBase =
@@ -153,6 +154,7 @@ describe(`POST /${apiVersion}/receipts`, () => {
       movementIds: [],
       wasteType: 'NON_HAZARDOUS',
       orgId: forwardedOrganisationId,
+      ...forwardedClient,
       requestId: traceId
     })
     // The empty Delivery keeps the request, as its Receipt does
@@ -164,6 +166,7 @@ describe(`POST /${apiVersion}/receipts`, () => {
 
     expect(receiptInDb).toMatchObject({
       orgId: forwardedOrganisationId,
+      ...forwardedClient,
       requestId: traceId
     })
     expect(fromPayload(receiptInDb.payload)).toEqual(payload)

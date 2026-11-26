@@ -6,6 +6,8 @@
   "required": [
     "_id",
     "orgId",
+    "clientId",
+    "clientName",
     "requestId",
     "revision",
     "createdAt",
@@ -17,8 +19,18 @@
     "wasteType"
   ],
   "properties": {
-    "_id": { "$ref": "../common/envelope.schema.json#/properties/_id" },
-    "orgId": { "$ref": "../common/envelope.schema.json#/properties/orgId" },
+    "_id": {
+      "$ref": "../common/envelope.schema.json#/properties/_id"
+    },
+    "orgId": {
+      "$ref": "../common/envelope.schema.json#/properties/orgId"
+    },
+    "clientId": {
+      "$ref": "../common/envelope.schema.json#/properties/clientId"
+    },
+    "clientName": {
+      "$ref": "../common/envelope.schema.json#/properties/clientName"
+    },
     "requestId": {
       "$ref": "../common/envelope.schema.json#/properties/requestId",
       "description": "The `x-request-id` the API returned to the request that created the Delivery. Every Delivery one `POST /deliveries` recorded has the same one."

@@ -29,21 +29,21 @@ export const receiptData = (store) => ({
    * stored is a duplicate key error.
    *
    * @param {import('mongodb').Db} db
-   * @param {{ deliveryId: string, orgId: string, requestId: string, payload: object }} receipt -
+   * @param {{ deliveryId: string, payload: object } & import('#/common/data/entity-store.js').Envelope} receipt -
    * `payload` is the request body
    * @param {import('mongodb').InsertOneOptions} [options] - e.g. a session
    * @returns {Promise<object>} the stored document
    */
   createReceiptRecord: async (
     db,
-    { deliveryId, orgId, requestId, payload },
+    { deliveryId, payload, ...envelope },
     options
   ) => {
     try {
-      const document = store.newDocument(
-        { orgId, requestId },
-        { ...storedPayload(payload), deliveryId }
-      )
+      const document = store.newDocument(envelope, {
+        ...storedPayload(payload),
+        deliveryId
+      })
       await store.insertOne(db, document, options)
 
       return document

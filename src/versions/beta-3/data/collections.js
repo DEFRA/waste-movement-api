@@ -29,19 +29,16 @@ export const collectionData = (store) => ({
    * already stored is a duplicate key error.
    *
    * @param {import('mongodb').Db} db
-   * @param {{ movementId: string, orgId: string, requestId: string, payload: object }} collection -
+   * @param {{ movementId: string, payload: object } & import('#/common/data/entity-store.js').Envelope} collection -
    * `payload` is the request body
    * @returns {Promise<object>} the stored document
    */
-  createCollectionRecord: async (
-    db,
-    { movementId, orgId, requestId, payload }
-  ) => {
+  createCollectionRecord: async (db, { movementId, payload, ...envelope }) => {
     try {
-      const document = store.newDocument(
-        { orgId, requestId },
-        { ...storedPayload(payload), movementId }
-      )
+      const document = store.newDocument(envelope, {
+        ...storedPayload(payload),
+        movementId
+      })
       await store.insertOne(db, document)
 
       return document

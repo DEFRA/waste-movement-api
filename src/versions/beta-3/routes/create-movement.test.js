@@ -4,7 +4,9 @@ import { apiCode1 } from '#test/data/api-codes.js'
 import { requestBasicAuthTest1 } from '#test/data/basic-auth.js'
 import { test as routeTest } from '#test/helpers/route-fixtures.js'
 import {
+  forwardedClient,
   forwardedOrganisationId,
+  forwardedHeaders,
   organisationHeaders
 } from '#test/data/organisation-headers.js'
 import {
@@ -122,7 +124,7 @@ const test = routeTest.extend({
         headers: {
           'x-cdp-request-id': traceId,
           Authorization: `Basic ${requestBasicAuthTest1}`,
-          ...organisationHeaders
+          ...forwardedHeaders
         }
       })
     )
@@ -173,7 +175,7 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -187,6 +189,7 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
     expect(createMovementRecordSpy).toHaveBeenCalledWith(expect.anything(), {
       movementId: expect.any(String),
       orgId: forwardedOrganisationId,
+      ...forwardedClient,
       requestId: traceId,
       payload: goodPayload
     })
@@ -217,7 +220,7 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
         headers: {
           'x-cdp-request-id': traceId,
           Authorization: `Basic ${requestBasicAuthTest1}`,
-          ...organisationHeaders
+          ...forwardedHeaders
         }
       })
 
@@ -243,7 +246,7 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -275,7 +278,7 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -319,7 +322,7 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -441,7 +444,7 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -486,7 +489,7 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -532,7 +535,7 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -577,7 +580,7 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -622,7 +625,7 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -662,7 +665,7 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -674,6 +677,7 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
     expect(recordInDb).toEqual({
       _id: expect.any(ObjectId),
       orgId: forwardedOrganisationId,
+      ...forwardedClient,
       requestId: traceId,
       revision: 0,
       createdAt: expect.any(Date),
@@ -691,7 +695,7 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
     const headers = {
       'x-cdp-request-id': traceId,
       Authorization: `Basic ${requestBasicAuthTest1}`,
-      ...organisationHeaders
+      ...forwardedHeaders
     }
 
     test.beforeEach(async ({ movements }) => {
@@ -768,7 +772,7 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -814,7 +818,7 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -855,7 +859,7 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -906,6 +910,29 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
     expect(createMovementRecordSpy).toHaveBeenCalledTimes(0)
   })
 
+  // The external API always forwards one, so its absence is our fault
+  test('is a 500, creating no movement, when no software provider was forwarded', async ({
+    server
+  }) => {
+    const createMovementRecordSpy = vi.spyOn(
+      movementCreate,
+      'createMovementRecord'
+    )
+
+    const { statusCode } = await server.inject({
+      method: 'POST',
+      url: `/${apiVersion}/movements`,
+      payload: goodPayload,
+      headers: {
+        Authorization: `Basic ${requestBasicAuthTest1}`,
+        ...organisationHeaders
+      }
+    })
+
+    expect(statusCode).toEqual(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    expect(createMovementRecordSpy).toHaveBeenCalledTimes(0)
+  })
+
   test('should return 401 when request is unauthenticated', async ({
     server
   }) => {
@@ -949,7 +976,7 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -1005,7 +1032,7 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
           headers: {
             'x-cdp-request-id': traceId,
             Authorization: `Basic ${requestBasicAuthTest1}`,
-            ...organisationHeaders
+            ...forwardedHeaders
           }
         })
 
@@ -1083,7 +1110,7 @@ describe(`movement Route Tests version: ${apiVersion}`, () => {
         headers: {
           'x-cdp-request-id': traceId,
           Authorization: `Basic ${requestBasicAuthTest1}`,
-          ...organisationHeaders
+          ...forwardedHeaders
         }
       })
 

@@ -51,30 +51,27 @@ export const deliveryData = (store) => ({
    * from that request's waste items, as a movement's does.
    *
    * @param {import('mongodb').Db} db
-   * @param {{ deliveryId: string, orgId: string, requestId: string, payload: object }} delivery -
+   * @param {{ deliveryId: string, payload: object } & import('#/common/data/entity-store.js').Envelope} delivery -
    * `payload` is the `POST /receipts` request body
    * @param {import('mongodb').InsertOneOptions} [options] - e.g. a session
    * @returns {Promise<{ deliveryId: string }>}
    */
   createUndocumentedDeliveryRecord: async (
     db,
-    { deliveryId, orgId, requestId, payload },
+    { deliveryId, payload, ...envelope },
     options
   ) => {
     try {
       await store.insertOne(
         db,
-        store.newDocument(
-          { orgId, requestId },
-          {
-            ...storedPayload(payload),
-            deliveryId,
-            movementIds: [],
-            wasteType: isHazardous(payload)
-              ? WASTE_TYPE.HAZARDOUS
-              : WASTE_TYPE.NON_HAZARDOUS
-          }
-        ),
+        store.newDocument(envelope, {
+          ...storedPayload(payload),
+          deliveryId,
+          movementIds: [],
+          wasteType: isHazardous(payload)
+            ? WASTE_TYPE.HAZARDOUS
+            : WASTE_TYPE.NON_HAZARDOUS
+        }),
         options
       )
 
@@ -98,7 +95,7 @@ export const deliveryData = (store) => ({
    *
    * @param {import('mongodb').Db} db
    * @param {import('mongodb').MongoClient} mongoClient
-   * @param {{ orgId: string, requestId: string, payload: object }} request -
+   * @param {{ payload: object } & import('#/common/data/entity-store.js').Envelope} request -
    * `payload` is the `POST /deliveries` request body
    * @param {{ deliveryId: string, movementIds: string[], wasteType: string }[]} groupings
    * @returns {Promise<object[]>} the stored documents, in input order
@@ -106,7 +103,7 @@ export const deliveryData = (store) => ({
   createDeliveryRecords: async (
     db,
     mongoClient,
-    { orgId, requestId, payload },
+    { payload, ...envelope },
     groupings
   ) => {
     try {
@@ -114,15 +111,12 @@ export const deliveryData = (store) => ({
       // worked out from the Movements delivered
       const documents = groupings.map(
         ({ deliveryId, movementIds, wasteType }) =>
-          store.newDocument(
-            { orgId, requestId },
-            {
-              ...storedPayload(payload),
-              deliveryId,
-              movementIds,
-              wasteType
-            }
-          )
+          store.newDocument(envelope, {
+            ...storedPayload(payload),
+            deliveryId,
+            movementIds,
+            wasteType
+          })
       )
 
       await withTransaction(mongoClient, (session) =>

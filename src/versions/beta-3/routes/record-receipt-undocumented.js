@@ -4,6 +4,7 @@ import { getTraceId } from '@defra/hapi-tracing'
 import { backOff } from 'exponential-backoff'
 import { withTransaction } from '#/common/data/with-transaction.js'
 import { createDeliveryId } from '#/common/http/waste-tracking.js'
+import { getClient } from '#/common/client.js'
 import { getOrganisationId } from '#/common/organisation.js'
 import { handleBetaRouteError } from '#/common/route-errors.js'
 import { withPayloadChecks } from '#/common/validation/payload-checks.js'
@@ -47,6 +48,7 @@ export const recordReceiptUndocumented = (version) => ({
     try {
       const requestId = getTraceId() || randomUUID()
       const orgId = getOrganisationId(request)
+      const client = getClient(request)
       const deliveryId = await createDeliveryId()
 
       // The empty Delivery and its Receipt are stored together or not at all,
@@ -56,12 +58,24 @@ export const recordReceiptUndocumented = (version) => ({
           withTransaction(request.mongoClient, async (session) => {
             await version.deliveries.createUndocumentedDeliveryRecord(
               request.db,
-              { deliveryId, orgId, requestId, payload: request.payload },
+              {
+                deliveryId,
+                orgId,
+                ...client,
+                requestId,
+                payload: request.payload
+              },
               { session }
             )
             await version.receipts.createReceiptRecord(
               request.db,
-              { deliveryId, orgId, requestId, payload: request.payload },
+              {
+                deliveryId,
+                orgId,
+                ...client,
+                requestId,
+                payload: request.payload
+              },
               { session }
             )
           }),

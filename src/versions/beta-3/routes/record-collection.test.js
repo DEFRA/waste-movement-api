@@ -4,8 +4,9 @@ import { requestBasicAuthTest1 } from '#test/data/basic-auth.js'
 import { test as routeTest } from '#test/helpers/route-fixtures.js'
 import { breakNextResponse } from '#test/helpers/break-next-response.js'
 import {
+  forwardedClient,
   forwardedOrganisationId,
-  organisationHeaders
+  forwardedHeaders
 } from '#test/data/organisation-headers.js'
 import { fromPayload } from '#/common/data/payload.js'
 import {
@@ -53,7 +54,7 @@ const test = routeTest.extend({
         headers: {
           'x-cdp-request-id': traceId,
           Authorization: `Basic ${requestBasicAuthTest1}`,
-          ...organisationHeaders
+          ...forwardedHeaders
         }
       })
     )
@@ -109,7 +110,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       payload: goodPayload,
       headers: {
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -136,6 +137,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
 
     expect(recordInDb).toMatchObject({
       orgId: forwardedOrganisationId,
+      ...forwardedClient,
       requestId: traceId,
       revision: 0
     })
@@ -233,7 +235,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       payload,
       headers: {
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -264,7 +266,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -298,7 +300,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -333,7 +335,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       payload,
       headers: {
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -364,7 +366,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -400,7 +402,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       payload,
       headers: {
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -428,7 +430,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -480,7 +482,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       payload: goodPayload,
       headers: {
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -509,7 +511,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -544,7 +546,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -580,7 +582,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -617,7 +619,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -651,7 +653,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 
@@ -706,7 +708,7 @@ describe(`collection Route Tests version: ${apiVersion}`, () => {
       headers: {
         'x-cdp-request-id': traceId,
         Authorization: `Basic ${requestBasicAuthTest1}`,
-        ...organisationHeaders
+        ...forwardedHeaders
       }
     })
 

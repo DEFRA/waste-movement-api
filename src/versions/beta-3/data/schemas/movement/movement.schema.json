@@ -6,6 +6,8 @@
   "required": [
     "_id",
     "orgId",
+    "clientId",
+    "clientName",
     "requestId",
     "revision",
     "createdAt",
@@ -16,8 +18,18 @@
     "isHazardous"
   ],
   "properties": {
-    "_id": { "$ref": "../common/envelope.schema.json#/properties/_id" },
-    "orgId": { "$ref": "../common/envelope.schema.json#/properties/orgId" },
+    "_id": {
+      "$ref": "../common/envelope.schema.json#/properties/_id"
+    },
+    "orgId": {
+      "$ref": "../common/envelope.schema.json#/properties/orgId"
+    },
+    "clientId": {
+      "$ref": "../common/envelope.schema.json#/properties/clientId"
+    },
+    "clientName": {
+      "$ref": "../common/envelope.schema.json#/properties/clientName"
+    },
     "requestId": {
       "$ref": "../common/envelope.schema.json#/properties/requestId"
     },

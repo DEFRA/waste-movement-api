@@ -6,6 +6,8 @@
         "$oid": "6966b3a6c2f1a40b8e9d1a10"
       },
       "orgId": "d829f66d-857f-401d-b5e9-5061b7dbb29d",
+      "clientId": "4sfn2ij4qnnpqbe4ok3u0rgc5o",
+      "clientName": "Acme Waste Systems Ltd",
       "requestId": "a8f2c3e1-4b5d-4c6e-9f70-1a2b3c4d5e6f",
       "revision": 0,
       "createdAt": {
@@ -32,6 +34,8 @@
         "$oid": "6966b3a6c2f1a40b8e9d1a11"
       },
       "orgId": "d829f66d-857f-401d-b5e9-5061b7dbb29d",
+      "clientId": "4sfn2ij4qnnpqbe4ok3u0rgc5o",
+      "clientName": "Acme Waste Systems Ltd",
       "requestId": "b1c2d3e4-5f60-4718-9a2b-3c4d5e6f7a8b",
       "revision": 0,
       "createdAt": {

@@ -2,6 +2,7 @@ import { MongoClient, ObjectId } from 'mongodb'
 import { DocumentValidationError } from '#/common/data/entity-store.js'
 import { fromPayload, hashPayload } from '#/common/data/payload.js'
 import { syncDataSchemas } from '#/common/data/sync-data-schemas.js'
+import { forwardedClient } from '#test/data/organisation-headers.js'
 import { withTransaction } from '#/common/data/with-transaction.js'
 import { collectionName as versionCollectionName, version } from '../index.js'
 
@@ -12,6 +13,7 @@ const { createReceiptRecord } = version.receipts
 const record = {
   deliveryId: '25KMT4Z9',
   orgId: '57aed195-325e-45d5-b1fb-5f201e0324cf',
+  ...forwardedClient,
   requestId: 'a6b7c8d9-a4b5-4c6d-8f70-8b9c0d1e2f3a',
   payload: { receiptDateTime: '2026-01-16T07:30:00Z' }
 }
@@ -49,6 +51,8 @@ describe('receipt data', () => {
       expect(recordInDb).toEqual({
         _id: expect.any(ObjectId),
         orgId: record.orgId,
+        clientId: record.clientId,
+        clientName: record.clientName,
         requestId: record.requestId,
         revision: 0,
         createdAt: now,

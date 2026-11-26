@@ -49,26 +49,20 @@ export const movementData = (store) => ({
    * duplicate key error.
    *
    * @param {import('mongodb').Db} db
-   * @param {{ movementId: string, orgId: string, requestId: string, payload: object }} movement -
+   * @param {{ movementId: string, payload: object } & import('#/common/data/entity-store.js').Envelope} movement -
    * `payload` is the `POST /movements` request body
    * @returns {Promise<{ movementId: string }>}
    */
-  createMovementRecord: async (
-    db,
-    { movementId, orgId, requestId, payload }
-  ) => {
+  createMovementRecord: async (db, { movementId, payload, ...envelope }) => {
     try {
       await store.insertOne(
         db,
         // The request, plus only what POST /deliveries reads
-        store.newDocument(
-          { orgId, requestId },
-          {
-            ...storedPayload(payload),
-            movementId,
-            isHazardous: isHazardous(payload)
-          }
-        )
+        store.newDocument(envelope, {
+          ...storedPayload(payload),
+          movementId,
+          isHazardous: isHazardous(payload)
+        })
       )
 
       return { movementId }

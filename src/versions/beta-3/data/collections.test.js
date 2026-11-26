@@ -2,6 +2,7 @@ import { MongoClient, ObjectId } from 'mongodb'
 import { DocumentValidationError } from '#/common/data/entity-store.js'
 import { fromPayload, hashPayload } from '#/common/data/payload.js'
 import { syncDataSchemas } from '#/common/data/sync-data-schemas.js'
+import { forwardedClient } from '#test/data/organisation-headers.js'
 import { collectionName as versionCollectionName, version } from '../index.js'
 
 const collectionName = versionCollectionName('collections')
@@ -11,6 +12,7 @@ const { createCollectionRecord } = version.collections
 const record = {
   movementId: '25HRA0B2',
   orgId: '57aed195-325e-45d5-b1fb-5f201e0324cf',
+  ...forwardedClient,
   requestId: 'c2d3e4f5-6071-4829-8b3c-4d5e6f7a8b9c',
   payload: { isDutyOfCareConfirmed: true }
 }
@@ -48,6 +50,8 @@ describe('collection data', () => {
       expect(recordInDb).toEqual({
         _id: expect.any(ObjectId),
         orgId: record.orgId,
+        clientId: record.clientId,
+        clientName: record.clientName,
         requestId: record.requestId,
         revision: 0,
         createdAt: now,

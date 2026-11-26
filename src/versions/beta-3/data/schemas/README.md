@@ -15,10 +15,14 @@ openapi.json                       all of the above in one document, with no end
 
 ## What a document holds
 
-- **The envelope**: `_id`, `orgId`, `requestId`, `revision`, `createdAt`, `updatedAt`, and
-  `payload` with its `payloadHash`.
+- **The envelope**: `_id`, `orgId`, `clientId`, `clientName`, `requestId`, `revision`, `createdAt`,
+  `updatedAt`, and `payload` with its `payloadHash`.
   - `_id` is a generated ObjectId, internal and never exposed. An entity's public ID (`movementId`,
     `deliveryId`) is a field of its own.
+  - `orgId` is the organisation the request was for, and `clientId` the software provider that sent it
+    (its Cognito token's `client_id`), both forwarded by the external API. An organisation can use more
+    than one provider, or switch, so the two are recorded apart. `clientName` is the provider's name at
+    the time, or null when the external API couldn't look it up.
   - `requestId` is the `x-request-id` the API returned to the request that created the document. It
     never changes, so it links the documents one request created, e.g. the Deliveries one
     `POST /deliveries` recorded.
@@ -61,8 +65,8 @@ gets one too, from the waste items of its own request: any declaring hazardous p
 - **MongoDB's `$jsonSchema` dialect**, as close to plain JSON Schema as it allows. The same
   schema is checked by ajv before every write, and is each collection's validator in MongoDB
   (`strict`, `error`), so a badly shaped write is rejected from any client.
-- **A JSON type goes in `type`** (`string`, `boolean`, `number`, `object`, `array`), which JSON
-  Schema and OpenAPI tools understand. **Only what `type` can't say goes in `bsonType`**:
+- **A JSON type goes in `type`** (`string`, `boolean`, `number`, `object`, `array`, or a list of
+  them such as `["string", "null"]`), which JSON Schema and OpenAPI tools understand. **Only what `type` can't say goes in `bsonType`**:
   `objectId` (`_id`), `date` (`createdAt`, `updatedAt`), `binData` (`payload`) and `int`
   (`revision`), which tools show as untyped. MongoDB rejects a field with both, and doesn't
   support `type: "integer"`, `format`, `nullable` or `example`.

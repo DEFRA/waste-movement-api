@@ -93,7 +93,8 @@ describe('DB schemas', () => {
         const isTyped = ({ type, bsonType }) =>
           type === undefined
             ? BSON_ONLY_TYPES.includes(bsonType)
-            : bsonType === undefined && JSON_TYPES.includes(type)
+            : bsonType === undefined &&
+              [type].flat().every((each) => JSON_TYPES.includes(each))
         const untyped = schemaNodes
           .filter(({ node }) => !node.$ref && !isTyped(node))
           .map(({ at }) => at || '/')
@@ -234,7 +235,12 @@ describe('every API request example, stored through its data module', () => {
   const client = new MongoClient(process.env.MONGO_URI)
   const db = client.db('beta-3-data-round-trip-test')
   const { movements, collections, deliveries, receipts } = version
-  const envelope = { orgId: 'org', requestId: 'request' }
+  const envelope = {
+    orgId: 'org',
+    clientId: 'client',
+    clientName: null,
+    requestId: 'request'
+  }
 
   const apiExamples = (name) =>
     Object.entries(

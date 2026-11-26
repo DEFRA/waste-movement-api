@@ -2,6 +2,7 @@ import { MongoClient, ObjectId } from 'mongodb'
 import { DocumentValidationError } from '#/common/data/entity-store.js'
 import { fromPayload, hashPayload } from '#/common/data/payload.js'
 import { syncDataSchemas } from '#/common/data/sync-data-schemas.js'
+import { forwardedClient } from '#test/data/organisation-headers.js'
 import { collectionName as versionCollectionName, version } from '../index.js'
 import { hazardousWasteItem, wasteItem } from '../schemas/test-helpers.js'
 
@@ -16,6 +17,7 @@ const requestId = 'a8f2c3e1-4b5d-4c6e-9f70-1a2b3c4d5e6f'
 const movement = (movementId, wasteItems = [wasteItem]) => ({
   movementId,
   orgId,
+  ...forwardedClient,
   requestId,
   payload: { wasteItems }
 })
@@ -108,6 +110,7 @@ describe('movement data', () => {
       expect(recordInDb).toEqual({
         _id: expect.any(ObjectId),
         orgId,
+        ...forwardedClient,
         requestId,
         revision: 0,
         createdAt: now,

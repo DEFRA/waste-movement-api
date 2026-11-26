@@ -75,6 +75,18 @@ and keeping them out of `_id` leaves room to change that. A `requestId` that nev
 ties together the several Deliveries one `POST /deliveries` records, and a client can quote it from
 the response. Later writers will be recorded by a history collection, once documents can be updated.
 
+## A document records the software provider as well as the organisation
+
+Beside `orgId`, every document has the `clientId` of the software provider that sent the request (its
+Cognito token's `client_id`, forwarded by the external API) and its `clientName` at the time, or null
+when the external API couldn't look it up. A missing client ID is a 500, not a 400: the external API
+rejects a token without one, so it's a fault between the two services, not the caller's.
+
+**Why:** an organisation can use more than one software provider, or switch, and what's sent can differ
+between them, so knowing which sent a request helps to debug it. The ID is what to query by; the name
+can change, so it's a snapshot, kept only to read. Neither takes part in telling a resubmission from a
+conflict: the same organisation's same request through another provider is still the same request.
+
 ## A Movement is collected once and a Delivery received once; a different second one is a 409
 
 A Collection's `movementId` and a Receipt's `deliveryId` each have a unique index. When a

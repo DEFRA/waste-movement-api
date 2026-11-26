@@ -4,7 +4,10 @@ import { test as integrationTest } from '#test/integration/helpers/fixtures.js'
 import { expectStandardHeaders } from '#test/integration/helpers/expect-standard-headers.js'
 import { describeBetaEndpointTests } from '#test/integration/helpers/beta-endpoint-tests.js'
 import { apiCode1 } from '#test/data/api-codes.js'
-import { forwardedOrganisationId } from '#test/data/organisation-headers.js'
+import {
+  forwardedClient,
+  forwardedOrganisationId
+} from '#test/data/organisation-headers.js'
 import { ObjectId } from 'mongodb'
 import { fromPayload } from '#/common/data/payload.js'
 import { expectProblemResponse } from '#test/integration/helpers/expect-problem-response.js'
@@ -107,6 +110,7 @@ describe(apiVersion, () => {
         _id: expect.any(ObjectId),
         movementId,
         orgId: forwardedOrganisationId,
+        ...forwardedClient,
         revision: 0,
         isHazardous: false,
         createdAt: expect.any(Date)
@@ -151,6 +155,7 @@ describe(apiVersion, () => {
         _id: expect.any(ObjectId),
         movementId,
         orgId: forwardedOrganisationId,
+        ...forwardedClient,
         createdAt: expect.any(Date)
       })
     })
@@ -201,6 +206,7 @@ describe(apiVersion, () => {
         _id: expect.any(ObjectId),
         movementId,
         orgId: forwardedOrganisationId,
+        ...forwardedClient,
         createdAt: expect.any(Date)
       })
     })
@@ -245,6 +251,7 @@ describe(apiVersion, () => {
       _id: expect.any(ObjectId),
       movementId,
       orgId: forwardedOrganisationId,
+      ...forwardedClient,
       requestId: headers.get('x-request-id'),
       createdAt: expect.any(Date)
     })
@@ -315,6 +322,7 @@ describe(apiVersion, () => {
       _id: expect.any(ObjectId),
       deliveryId,
       orgId: forwardedOrganisationId,
+      ...forwardedClient,
       requestId: headers.get('x-request-id'),
       movementIds: [movementId],
       wasteType: 'NON_HAZARDOUS',
@@ -397,6 +405,7 @@ describe(apiVersion, () => {
           expect.objectContaining({
             ...delivery,
             orgId: forwardedOrganisationId,
+            ...forwardedClient,
             // Both were recorded by the one request
             requestId: headers.get('x-request-id')
           })
@@ -451,6 +460,7 @@ describe(apiVersion, () => {
       _id: expect.any(ObjectId),
       deliveryId,
       orgId: forwardedOrganisationId,
+      ...forwardedClient,
       requestId: headers.get('x-request-id'),
       createdAt: expect.any(Date)
     })
@@ -496,6 +506,7 @@ describe(apiVersion, () => {
       _id: expect.any(ObjectId),
       deliveryId,
       orgId: forwardedOrganisationId,
+      ...forwardedClient,
       movementIds: [],
       wasteType: 'NON_HAZARDOUS',
       createdAt: expect.any(Date)
@@ -507,6 +518,7 @@ describe(apiVersion, () => {
     // The empty Delivery keeps the same request as its Receipt
     expect(receipt).toMatchObject({
       orgId: forwardedOrganisationId,
+      ...forwardedClient,
       requestId: delivery.requestId,
       payloadHash: delivery.payloadHash
     })

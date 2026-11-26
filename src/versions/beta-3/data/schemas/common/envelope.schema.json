@@ -12,6 +12,14 @@
       "type": "string",
       "description": "The ID of the organisation that submitted the request."
     },
+    "clientId": {
+      "type": "string",
+      "description": "The software provider that sent the request: the `client_id` of its Cognito token, which the external API forwards. Independent of `orgId`, as an organisation can use more than one software provider, or switch."
+    },
+    "clientName": {
+      "type": ["string", "null"],
+      "description": "The software provider's name when the request was sent, as the external API looked it up for `clientId`; null when it couldn't. A snapshot, to debug with: the name can change, `clientId` doesn't."
+    },
     "requestId": {
       "type": "string",
       "description": "The `x-request-id` the API returned to the request that created the document. Never changed, so it links the documents one request created."

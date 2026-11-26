@@ -4,8 +4,9 @@ import { requestBasicAuthTest1 } from '#test/data/basic-auth.js'
 import { test as routeTest } from '#test/helpers/route-fixtures.js'
 import { breakNextResponse } from '#test/helpers/break-next-response.js'
 import {
+  forwardedClient,
   forwardedOrganisationId,
-  organisationHeaders
+  forwardedHeaders
 } from '#test/data/organisation-headers.js'
 import { fromPayload } from '#/common/data/payload.js'
 import {
@@ -54,7 +55,7 @@ const tracedHeaders = { 'x-cdp-request-id': traceId }
 const tracedAuthHeaders = {
   ...authHeaders,
   ...tracedHeaders,
-  ...organisationHeaders
+  ...forwardedHeaders
 }
 
 const expectedTypeBase =
@@ -156,6 +157,7 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
 
     expect(recordInDb).toMatchObject({
       orgId: forwardedOrganisationId,
+      ...forwardedClient,
       requestId: traceId,
       revision: 0
     })
@@ -444,7 +446,7 @@ describe(`POST /${apiVersion}/deliveries/{deliveryId}/receipt`, () => {
       },
       headers: {
         ...authHeaders,
-        ...organisationHeaders,
+        ...forwardedHeaders,
         'x-cdp-request-id': 'trace-id-123'
       }
     })

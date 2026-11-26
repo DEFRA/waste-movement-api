@@ -3,8 +3,9 @@ import { apiCode1 } from '#test/data/api-codes.js'
 import { requestBasicAuthTest1 } from '#test/data/basic-auth.js'
 import { test as routeTest } from '#test/helpers/route-fixtures.js'
 import {
+  forwardedClient,
   forwardedOrganisationId,
-  organisationHeaders
+  forwardedHeaders
 } from '#test/data/organisation-headers.js'
 import {
   supportingReference,
@@ -51,7 +52,7 @@ const tracedHeaders = { 'x-cdp-request-id': traceId }
 const tracedAuthHeaders = {
   ...authHeaders,
   ...tracedHeaders,
-  ...organisationHeaders
+  ...forwardedHeaders
 }
 
 const expectedTypeBase =
@@ -81,6 +82,8 @@ const test = routeTest.extend({
             projection: {
               _id: 0,
               orgId: 1,
+              clientId: 1,
+              clientName: 1,
               requestId: 1,
               deliveryId: 1,
               movementIds: 1,
@@ -149,7 +152,8 @@ describe(`POST /${apiVersion}/deliveries`, () => {
       deliveryId: '25KMT4Z9',
       movementIds: [movementId1, movementId2],
       wasteType: 'NON_HAZARDOUS',
-      orgId: forwardedOrganisationId
+      orgId: forwardedOrganisationId,
+      ...forwardedClient
     })
   })
 
@@ -691,6 +695,7 @@ describe(`POST /${apiVersion}/deliveries`, () => {
         expect(await findDeliveries()).toEqual(
           expected.map((item) => ({
             orgId: forwardedOrganisationId,
+            ...forwardedClient,
             // Every Delivery one request recorded shares its x-request-id
             requestId: traceId,
             ...item

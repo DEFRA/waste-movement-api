@@ -2,6 +2,7 @@ import { MongoClient, ObjectId } from 'mongodb'
 import { DocumentValidationError } from '#/common/data/entity-store.js'
 import { fromPayload, hashPayload } from '#/common/data/payload.js'
 import { syncDataSchemas } from '#/common/data/sync-data-schemas.js'
+import { forwardedClient } from '#test/data/organisation-headers.js'
 import {
   dataSchemas,
   collectionName as versionCollectionName,
@@ -21,11 +22,12 @@ const {
 const orgId = '57aed195-325e-45d5-b1fb-5f201e0324cf'
 const requestId = 'e4f5a6b7-8293-4a4b-8d5e-6f7a8b9c0d1e'
 const payload = { movementIds: ['25HRA0B1', '25HRA0B2', '25HRA0B4'] }
-const request = { orgId, requestId, payload }
+const request = { orgId, ...forwardedClient, requestId, payload }
 // An undocumented receipt's delivery keeps the POST /receipts request
 const undocumented = {
   deliveryId: '25KMT4Z9',
   orgId,
+  ...forwardedClient,
   requestId,
   payload: { reasonForNoDeliveryId: 'No delivery was recorded' }
 }
@@ -109,6 +111,7 @@ describe('delivery data', () => {
       ).toEqual({
         _id: expect.any(ObjectId),
         orgId,
+        ...forwardedClient,
         requestId,
         revision: 0,
         createdAt: now,
@@ -174,6 +177,7 @@ describe('delivery data', () => {
         groupings.map((grouping) => ({
           _id: expect.any(ObjectId),
           orgId,
+          ...forwardedClient,
           requestId,
           revision: 0,
           createdAt: now,

@@ -4,6 +4,7 @@ import { getTraceId } from '@defra/hapi-tracing'
 import { badRequest } from '@hapi/boom'
 import { backOff } from 'exponential-backoff'
 import { createDeliveryId } from '#/common/http/waste-tracking.js'
+import { getClient } from '#/common/client.js'
 import { getOrganisationId } from '#/common/organisation.js'
 import { handleBetaRouteError } from '#/common/route-errors.js'
 import { WASTE_TYPE } from '../checks/waste-type.js'
@@ -119,6 +120,7 @@ export const recordDelivery = (version) => ({
     try {
       const requestId = getTraceId() || randomUUID()
       const orgId = getOrganisationId(request)
+      const client = getClient(request)
 
       const movementsById = await findDeliverableMovements(
         version,
@@ -132,7 +134,7 @@ export const recordDelivery = (version) => ({
           deliveries.createDeliveryRecords(
             request.db,
             request.mongoClient,
-            { orgId, requestId, payload: request.payload },
+            { orgId, ...client, requestId, payload: request.payload },
             split
           ),
         backoffOptions(logger)

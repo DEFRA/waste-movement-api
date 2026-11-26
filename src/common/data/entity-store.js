@@ -21,6 +21,16 @@ export class DocumentValidationError extends Error {
 }
 
 /**
+ * Who sent the request creating a document.
+ *
+ * @typedef {object} Envelope
+ * @property {string} orgId - the organisation
+ * @property {string} clientId - the software provider (see client.js)
+ * @property {string | null} clientName - its name, when known
+ * @property {string} requestId - the `x-request-id` of the request
+ */
+
+/**
  * The one place an entity's documents are written: each is stamped with the
  * envelope every document carries, checked against the entity's DB schema,
  * then inserted.
@@ -57,15 +67,16 @@ export const entityStore = (collectionName, dataSchema, logger) => {
      * and business fields). Its `_id` is internal, never exposed: the entity's
      * public ID is one of its own fields.
      *
-     * @param {{ orgId: string, requestId: string }} envelope - `requestId` is
-     * the `x-request-id` of the request creating the document
+     * @param {Envelope} envelope
      * @param {object} fields
      */
-    newDocument: ({ orgId, requestId }, fields) => {
+    newDocument: ({ orgId, clientId, clientName, requestId }, fields) => {
       const now = new Date()
       return {
         _id: new ObjectId(),
         orgId,
+        clientId,
+        clientName,
         requestId,
         revision: 0,
         createdAt: now,

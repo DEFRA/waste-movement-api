@@ -1,7 +1,10 @@
 // Stores this version's data for tests as the routes would, through its data
 // access objects, so it matches the DB schemas its collections are validated
 // against.
-import { forwardedOrganisationId } from '#test/data/organisation-headers.js'
+import {
+  forwardedClient,
+  forwardedOrganisationId
+} from '#test/data/organisation-headers.js'
 import { wasteItem } from '../schemas/test-helpers.js'
 import { version } from '../index.js'
 
@@ -25,6 +28,7 @@ export const storeMovements = (
       version.movements.createMovementRecord(db, {
         movementId,
         orgId,
+        ...forwardedClient,
         requestId: seededRequestId,
         payload: { wasteItems }
       })
@@ -46,6 +50,7 @@ export const storeDelivery = (
 ) => {
   const envelope = {
     orgId: forwardedOrganisationId,
+    ...forwardedClient,
     requestId: seededRequestId
   }
 

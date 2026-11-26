@@ -72,7 +72,9 @@ It works the way `waste-movement-backend` serves the earlier versions:
 
 - **Internal, not internet-facing.** Called by
   [waste-movement-external-api](https://github.com/DEFRA/waste-movement-external-api), which authenticates
-  external callers and forwards the caller's organisation in the `x-dwt-organisation-id` header.
+  external callers and forwards the caller's organisation in the `x-dwt-organisation-id` header,
+  and its software provider (the token's `client_id`, and its name) in `x-dwt-client-id` and
+  `x-dwt-client-name`.
 - **HTTP Basic auth** for callers, with credentials from `ACCESS_CRED_*` environment variables.
 - **Owns its own MongoDB database**; no other service reads or writes it.
 - **Calls [waste-tracking-id-backend](https://github.com/DEFRA/waste-tracking-id-backend)** for movement and
@@ -103,6 +105,7 @@ src/
                        same request succeeds, a different one is a 409), withTransaction,
                        isDuplicateKeyError, insertWithRetry (a duplicate key on a retry counts as success)
     openapi/           bundle(specPath): an OpenAPI document with every $ref resolved
+    client.js          getClient, from the x-dwt-client-id and x-dwt-client-name headers
     organisation.js    getOrganisationId, from the x-dwt-organisation-id header
     route-errors.js    handleBetaRouteError
   plugins/
@@ -287,7 +290,9 @@ git config --global core.autocrlf false
 
 Every route but `/health` needs HTTP Basic auth, and every error is an RFC 9457 problem response
 (`application/problem+json`). The beta routes also need the caller's organisation in the
-`x-dwt-organisation-id` header, which waste-movement-external-api sets.
+`x-dwt-organisation-id` header and its software provider in `x-dwt-client-id` (and, when known, its
+name in `x-dwt-client-name`), which waste-movement-external-api sets. A missing organisation is a 400
+(an invalid API code); a missing client ID is a 500, as the external API always sends one.
 
 | Endpoint                                          | Description                                |
 | :------------------------------------------------ | :----------------------------------------- |

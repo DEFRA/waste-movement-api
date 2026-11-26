@@ -3,6 +3,7 @@ import { HTTP_STATUS } from '@defra/waste-movement-utils'
 import { getTraceId } from '@defra/hapi-tracing'
 import { notFound } from '@hapi/boom'
 import { insertOnce } from '#/common/data/insert-once.js'
+import { getClient } from '#/common/client.js'
 import { getOrganisationId } from '#/common/organisation.js'
 import { handleBetaRouteError } from '#/common/route-errors.js'
 
@@ -34,6 +35,7 @@ export const recordCollection = (version) => ({
     try {
       const requestId = getTraceId() || randomUUID()
       const orgId = getOrganisationId(request)
+      const client = getClient(request)
       const movementRecord = await version.movements.getMovementRecord(
         request.db,
         movementId
@@ -50,6 +52,7 @@ export const recordCollection = (version) => ({
           version.collections.createCollectionRecord(request.db, {
             movementId,
             orgId,
+            ...client,
             requestId,
             payload: request.payload
           }),

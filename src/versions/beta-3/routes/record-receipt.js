@@ -3,6 +3,7 @@ import { HTTP_STATUS } from '@defra/waste-movement-utils'
 import { getTraceId } from '@defra/hapi-tracing'
 import { notFound } from '@hapi/boom'
 import { insertOnce } from '#/common/data/insert-once.js'
+import { getClient } from '#/common/client.js'
 import { getOrganisationId } from '#/common/organisation.js'
 import { handleBetaRouteError } from '#/common/route-errors.js'
 import { withPayloadChecks } from '#/common/validation/payload-checks.js'
@@ -46,6 +47,7 @@ export const recordReceipt = (version) => ({
     try {
       const requestId = getTraceId() || randomUUID()
       const orgId = getOrganisationId(request)
+      const client = getClient(request)
 
       const movementIds = await version.deliveries.findDeliveryMovementIds(
         request.db,
@@ -66,6 +68,7 @@ export const recordReceipt = (version) => ({
           version.receipts.createReceiptRecord(request.db, {
             deliveryId,
             orgId,
+            ...client,
             requestId,
             payload: request.payload
           }),
